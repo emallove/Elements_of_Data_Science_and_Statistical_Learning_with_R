@@ -24,8 +24,7 @@ for ( N in sample.sizes ) { # try different sample sizes
   # Save all those means into a vector 'm'. 
   #
   
-  #m = dnorm(N, mean = 0, sd = 1, log = FALSE)
-  #m = values[1:N]
+  #m <- NULL  # WHY DOES THIS LINE *FIX* THE SLOPE OF SAMPLE-SIZE-SEMS?
   for (l in 1:N) {
     m[l] = mean(sample(values, N))
   }
