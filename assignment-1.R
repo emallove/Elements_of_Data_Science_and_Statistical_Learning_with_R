@@ -53,6 +53,5 @@ for ( N in sample.sizes ) { # try different sample sizes
 # let us now plot the SEM (i.e. the "typical" error we expect the sample mean to exhibit in any 
 # given experiment) as a function of the sample size, N. 
 
-plot(sample.sizes, mean.sds, main="SEM vs sample size", pch=19)
+plot(sample.sizes, xlab="Sample Size", ylab="SEM", mean.sds, main="SEM vs sample size", pch=19)
 lines(sample.sizes, 1/sqrt(sample.sizes), col='blue')
-
