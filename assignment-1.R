@@ -1,6 +1,5 @@
 # different sample sizes we are going to try:
 sample.sizes=c(3,10,50, 100, 500, 1000)
-#sample.sizes = seq(0, 1000, 50)
 
 # we will use the vector below to save the standard deviations of the 
 # *distribution of the means* at each given sample size.
@@ -9,8 +8,6 @@ sample.sizes=c(3,10,50, 100, 500, 1000)
 # on assignment, see examples in the slides) 
 mean.sds = double(0) 
 
-# values <- rnorm(1000)
-values = vector("integer", 1000)
 values = runif(1000)
 
 i = 1
@@ -24,7 +21,7 @@ for ( N in sample.sizes ) { # try different sample sizes
   # Save all those means into a vector 'm'. 
   #
   
-  #m <- NULL  # WHY DOES THIS LINE *FIX* THE SLOPE OF SAMPLE-SIZE-SEMS?
+  m <- NULL
   for (l in 1:N) {
     m[l] = mean(sample(values, N))
   }
