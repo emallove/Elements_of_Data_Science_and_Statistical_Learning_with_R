@@ -1,0 +1,41 @@
+---
+title: "Assignment 1 - Problem 2 - CSCI E-63C"
+author: "Ethan Mallove"
+date: "9/7/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r c}
+N <- 1  # the number of i.i.d. variables X we are going to sum
+
+# how many times we are going to repeat the "experiment" (see the text above for what we now call an experiment):
+#n.repeats <- 1000
+s.values <- numeric() # we will use this vector to store the value of the sum, s, in each experiment
+
+for (n.repeats in c(1, 100, 500, 1000, 2000)) { # repeat the experiment 'n.repeats' times
+
+   for (i.exp in 1:n.repeats) { # repeat the experiment 'n.repeats' times
+   
+      # More details below. In each "experiment" we must draw the values x1, ..., xN of all the 
+      # random variables we are going to sum up:
+     
+      ### replace with correct call: 
+      x <- runif(n.repeats)
+   
+     # the "measured" value of the random variable S in the current experiment is the sum of x1...xN;
+     # calculate it and save into the vector s.values:
+      
+     ### replace with correct call: 
+     s.values[i.exp] <- sum(x) # ...???...
+   }
+
+   hist(s.values, breaks = 20, main = paste("Histogram of sample size: " , n.repeats))
+
+}
+```
