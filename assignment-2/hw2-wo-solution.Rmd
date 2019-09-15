@@ -76,23 +76,70 @@ Once the dataset in loaded into R, please name appropriately data set attributes
 
 ```{r wifiRead}
 #habDat <- read.table("haberman.data",sep=",")
-wifiDat <- read.table("wifi_localization.txt",sep=",")
+wifiDat <- read.table("wifi_localization.txt",sep="\t")
 
 #colnames(habDat) <- c("age","year","nodes","surv")
 colnames(wifiDat) <- c("WS1", "WS2", "WS3", "WS4", "WS5", "WS6", "WS7", "Class")
 summary(wifiDat$Class)
 
 # habDat$surv <- c("yes","no")[habDat$surv]
-wifiDat$Class <- c(1,2,3,4)[wifiDat$surv]
+wifiDat$Class <- c(1,2,3,4)[wifiDat$Class]
 
 #summary(habDat$surv)
-summary(wifiDat$surv)
+summary(wifiDat$Class)
 
 #habDat$surv <- factor(habDat$surv)
-wifiDat$surv <- factor(wifiDat$surv)
+wifiDat$Class <- factor(wifiDat$Class)
 
 #summary(habDat$surv)
-summary(wifiDat$surv)
+summary(wifiDat$Class)
+
+
+```
+
+# Put router number (1-7) on the x-axis, with corresponding signal strength on the y-axis.
+# Break the scatter plots into four separate graphs: Room 1-4
+
+wifi_loc_data_matrix = matrix(scan("wifi_localization.txt"), ncol = 8, byrow = TRUE)
+wifi_loc_data_matrix1 = matrix(wifi_loc_data_matrix[wifi_loc_data_matrix[,8] == 1], ncol = 8)
+wifi_loc_data_matrix2 = matrix(wifi_loc_data_matrix[wifi_loc_data_matrix[,8] == 2], ncol = 8)
+
+plot( xlab = "Router #",
+      ylab = "WiFi Signal Strength",
+      main = "WiFi Signal Strengths when device is located in Room 1")
+points(x = rep(c(1,2,3,4,5,6,7), 3), y = wifi_loc_data_matrix1[,-8], pch = 1)
+
+
+plot(x = rep(c(1,2,3,4,5,6,7), 3),
+      y = wifi_loc_data_matrix2[,-8],
+      xlab = "Router #",
+      ylab = "WiFi Signal Strength",
+      main = "WiFi Signal Strengths when device is located in Room 2")
+
+# colnames(m) <- c(purrr::map(1:7, purrr::map(1:3, function(x) paste("W", x)))
+colnames(m) <- c("W1", "W2", "W3", "W4", "W5", "W6", "W7", "Room")
+
+>
+> Select all rows with "1" in the 8 column
+> matrix(m[m[,8] == 1], ncols=8)
+>
+
+
+```{r wifiPlot,fig.height=5,fig.width=10}
+oldPar <- par(mfrow=c(1:2),ps=16)
+for ( iClass in sort(unique(wifiDat$Class)) ) {
+    plot(wifiDat[,c("age","nodes")],type="n",
+        main=paste("Classival:",iClass))
+    iTmp <- (1:length(levels(wifiDat$Class)))[levels(wifiDat$Class)==iClass]
+    points(wifiDat[wifiDat$Class==iClass,c("age","nodes")],col=iTmp,pch=iTmp)
+}
+par(oldPar)
+```
+
+```{r wifiPlotGG,fig.height=3,fig.width=6}
+ggplot(wifiDat,aes(x=age,y=nodes,colour=surv,shape=surv)) + 
+geom_point() + facet_wrap(~surv) + theme_bw()
+```
 ```
 
 Next, please comment on whether given the data at hand the problem of detecting room identity on the basis of the strength of the WiFi signal appears to be an easy or a hard one to solve. Try guessing, using your best intuition, what could be an error in predicting room identity in this dataset: 50%, 20%, 10%, 5%, 2%, less than that?  Later in the course we will work with this dataset again to actually develop such a classifier, and at that point you will get quantitative answer to this question. For now, what we are trying to achieve is to make you *think* about the data and to provide a (guesstimate) answer just from visual inspection of the scatterplots. Thus, there is no wrong answer at this point, just try your best, explain your (qualitative) reasoning, and make a note of your answer, so you can go back to it several weeks later.  
