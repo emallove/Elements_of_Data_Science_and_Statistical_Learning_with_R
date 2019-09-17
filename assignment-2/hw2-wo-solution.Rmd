@@ -13,17 +13,17 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Preface
 
-One of the first steps in the analysis of a new dataset, often as part of data cleaning, typically involves generation of high level summaries, such as: the numbers of observations and attributes (variables), which variables are predictors and which ones are (could be?) outcomes; what the ranges, distributions, and percentages of missing values in all the varianbles are; the strength of correlation among the predictors and between the predictors and the outcome(s), etc.  It is usually at this stage when we develop our initial intuition about the level of difficulty of the problem and the challenges presented by this particular dataset. This is when (and how) we form our first set of ideas as to how to approach the problem.  There are many multivariate methods under unsupervised learning umbrella that are extremely useful in this setting (which will be introduced later in the course), but first things first, and here we will start by loading few datasets into R and exploring their attributes in the form of univariate (e.g. single-variable) summaries and bivariate (two-variable) plots and contingency tables (where applicable).
-
-For this problem set we will use datasets available from the [UCI machine learning repository](http://archive.ics.uci.edu/ml/datasets.html) or subsets thereof cleaned up and pre-processed for the instructional purposes. For convenience and in order to avoid the dependence on UCI ML repository availability, we have copied the datasets into the course Canvas website. Once you have downloaded the data onto your computer, they can be imported into R using function `read.table` with necessary options (of which most useful/relevant include: `sep` -- defining field separator and `header` -- letting `read.table` know whether the first line in the text file contains the column names or the first row of data). In principle, `read.table` can also use URL as a full path to the dataset, but here, to be able to work independently of network connection and because of the pre-processing involved, you will need to download those datasets from Canvas website to your local computer and use `read.table` with appropriate paths to the local files.  The simplest thing is probably to copy the data to the same directory where your .Rmd file is, in which case just the file name passed to `read.table` should suffice.  As always, please remember, that `help(read.table)` (or, `?read.table` as a shorthand) will tell you quite a bit about this function and its parameters.
-
-For those datasets that do not have column names included in their data files, it is often convenient to assign them explicitly. Please note that for some of these datasets categorical variables are encoded in the form of integer values (e.g. 1, 2, 3 and 4) and thus R will interpret those as continuous variables by default, while the behavior of many R functions depends on the type of the input variables (continuous vs categorical/factor).
-
-The code excerpts and their output presented below illustrate some of these most basic steps as applied to one of the datasets available from UCI. The homework problems follow after that -- they will require you to apply similar kind of approaches to generate high levels summaries of few other datasets that you are provided here with.
+> One of the first steps in the analysis of a new dataset, often as part of data cleaning, typically involves generation of high level summaries, such as: the numbers of observations and attributes (variables), which variables are predictors and which ones are (could be?) outcomes; what the ranges, distributions, and percentages of missing values in all the varianbles are; the strength of correlation among the predictors and between the predictors and the outcome(s), etc.  It is usually at this stage when we develop our initial intuition about the level of difficulty of the problem and the challenges presented by this particular dataset. This is when (and how) we form our first set of ideas as to how to approach the problem.  There are many multivariate methods under unsupervised learning umbrella that are extremely useful in this setting (which will be introduced later in the course), but first things first, and here we will start by loading few datasets into R and exploring their attributes in the form of univariate (e.g. single-variable) summaries and bivariate (two-variable) plots and contingency tables (where applicable).
+> 
+> For this problem set we will use datasets available from the [UCI machine learning repository](http://archive.ics.uci.edu/ml/datasets.html) or subsets thereof cleaned up and pre-processed for the instructional purposes. For convenience and in order to avoid the dependence on UCI ML repository availability, we have copied the datasets into the course Canvas website. Once you have downloaded the data onto your computer, they can be imported into R using function `read.table` with necessary options (of which most useful/relevant include: `sep` -- defining field separator and `header` -- letting `read.table` know whether the first line in the text file contains the column names or the first row of data). In principle, `read.table` can also use URL as a full path to the dataset, but here, to be able to work independently of network connection and because of the pre-processing involved, you will need to download those datasets from Canvas website to your local computer and use `read.table` with appropriate paths to the local files.  The simplest thing is probably to copy the data to the same directory where your .Rmd file is, in which case just the file name passed to `read.table` should suffice.  As always, please remember, that `help(read.table)` (or, `?read.table` as a shorthand) will tell you quite a bit about this function and its parameters.
+> 
+> For those datasets that do not have column names included in their data files, it is often convenient to assign them explicitly. Please note that for some of these datasets categorical variables are encoded in the form of integer values (e.g. 1, 2, 3 and 4) and thus R will interpret those as continuous variables by default, while the behavior of many R functions depends on the type of the input variables (continuous vs categorical/factor).
+> 
+> The code excerpts and their output presented below illustrate some of these most basic steps as applied to one of the datasets available from UCI. The homework problems follow after that -- they will require you to apply similar kind of approaches to generate high levels summaries of few other datasets that you are provided here with.
 
 ## Haberman Survival Dataset
 
-Note how the `summary` function computes a 5-number summary for continuous variable, cannot do anything particularly useful for a general vector of strings, and counts the numbers of occurrences of distinct levels for a categorical variable (explicitly defined as a factor).
+> Note how the `summary` function computes a 5-number summary for continuous variable, cannot do anything particularly useful for a general vector of strings, and counts the numbers of occurrences of distinct levels for a categorical variable (explicitly defined as a factor).
 
 ```{r habRead}
 habDat <- read.table("haberman.data",sep=",")
@@ -35,7 +35,7 @@ habDat$surv <- factor(habDat$surv)
 summary(habDat$surv)
 ```
 
-Below we demonstrate xy-scatterplots of two variables (patient's age and node count), with color indicating their survival past 5 years. The first example uses basic plotting capabilities in R, while the second one shows how the same result can be achieved with `ggplot2` package. Note that in this particular example we choose to show the data stratified by the survival categorical variable in two separate scatterplots, side by side. The reason is purely aesthetic one: since we do indicate distinct classes of patients with different colors it would be entirely possible (and meaningful) to put all the data into a single scatterplot, same way it was done in class. However, the data at hand do not readily separate into (visually) distinct groups, at least in the projection on the two variables chosen here. There would be too much overplotting (exacerbated by the fact that node counts and years take on integer values only), and it would be more difficult to notice that the subset of data shown on the right (`survival=yes`) is in fact much more dense near `nodes=0`. It is certainly OK to use the type of visualization that provides the most insight into the data.
+> Below we demonstrate xy-scatterplots of two variables (patient's age and node count), with color indicating their survival past 5 years. The first example uses basic plotting capabilities in R, while the second one shows how the same result can be achieved with `ggplot2` package. Note that in this particular example we choose to show the data stratified by the survival categorical variable in two separate scatterplots, side by side. The reason is purely aesthetic one: since we do indicate distinct classes of patients with different colors it would be entirely possible (and meaningful) to put all the data into a single scatterplot, same way it was done in class. However, the data at hand do not readily separate into (visually) distinct groups, at least in the projection on the two variables chosen here. There would be too much overplotting (exacerbated by the fact that node counts and years take on integer values only), and it would be more difficult to notice that the subset of data shown on the right (`survival=yes`) is in fact much more dense near `nodes=0`. It is certainly OK to use the type of visualization that provides the most insight into the data.
 
 ```{r habPlot,fig.height=5,fig.width=10}
 oldPar <- par(mfrow=c(1:2),ps=16)
@@ -53,7 +53,7 @@ ggplot(habDat,aes(x=age,y=nodes,colour=surv,shape=surv)) +
 geom_point() + facet_wrap(~surv) + theme_bw()
 ```
 
-It seems that higher number of nodes might be associated with lower probability of survival: note that despite the fact that in both survival outcomes, yes and no, we have patients with large node counts and the distributions *above* node count of ~10 look pretty much the same (and structureless too), the `survival=yes` outcome clearly has much higer fraction of low node count cases, as expected. One attempt to quantify this relationship might involve testing relationship between indicators of survival and count of nodes exceeding arbitrarily chosen cutoffs (e.g. zero or 75th percentile as shown in the example below).   
+> It seems that higher number of nodes might be associated with lower probability of survival: note that despite the fact that in both survival outcomes, yes and no, we have patients with large node counts and the distributions *above* node count of ~10 look pretty much the same (and structureless too), the `survival=yes` outcome clearly has much higer fraction of low node count cases, as expected. One attempt to quantify this relationship might involve testing relationship between indicators of survival and count of nodes exceeding arbitrarily chosen cutoffs (e.g. zero or 75th percentile as shown in the example below).   
 In the code example we first generate a 2-way matrix that cross-tabulates the respective counts of cases with all combinations of survival yes/no and node count zero/non-zero values. As you can see, when `nodes=0` is true, the survival yes/no outcomes are split as 117/19, while for subset of cases where `nodes=0` is false, the survival yes/no values are split as 108/62, which is certainly much worse (you can check that this difference in survival probability is indeed statistically significant; which statistical test would you use for that?). The second part of the code performs pretty much the same task, except that we stratify the patients with respect to node counts being above or below 75% percentile, instead of being zero or non-zero: 
 
 
@@ -64,101 +64,100 @@ habDat$nodes75 <- habDat$nodes>=quantile(habDat$nodes,probs=0.75)
 table(habDat[, c("surv","nodes75")])
 ```
 
-Please feel free to model your solutions after the examples shown above, while exercising necessary judgement as to which attributes are best represented as continuous and which ones should be represented as categorical, etc.  The descriptions of homework problems provide some guidance as to what is expected, but leave some of those choices up to you. Making such calls is an integral part of any data analysis project and we will be working on advancing this skill throughout this course.
+> Please feel free to model your solutions after the examples shown above, while exercising necessary judgement as to which attributes are best represented as continuous and which ones should be represented as categorical, etc.  The descriptions of homework problems provide some guidance as to what is expected, but leave some of those choices up to you. Making such calls is an integral part of any data analysis project and we will be working on advancing this skill throughout this course.
 
 **Lastly -- do ask questions!  Piazza is the best for that**
 
 # Wireless Indoor Localization Data Set (30 points)
 
-This dataset presents an example of classification problem (room identity) using continuous predictors derived from the strengths of several WiFi signals on a smartphone. More details about underlying data can be found in corresponding [dataset description](http://archive.ics.uci.edu/ml/datasets/Wireless+Indoor+Localization) at UCI ML website. To load data into R please use data file `wifi_localization.txt` available both at the course website and/or in UCI ML dataset repository.
+> This dataset presents an example of classification problem (room identity) using continuous predictors derived from the strengths of several WiFi signals on a smartphone. More details about underlying data can be found in corresponding [dataset description](http://archive.ics.uci.edu/ml/datasets/Wireless+Indoor+Localization) at UCI ML website. To load data into R please use data file `wifi_localization.txt` available both at the course website and/or in UCI ML dataset repository.
 
-Once the dataset in loaded into R, please name appropriately data set attributes (variables), determine the number of variables (explain which ones are predictors and which one is the outcome) and observations in the dataset (R functions such as `dim`, `nrow`, `ncol` could be useful for this), generate summary of the data using `summary` function in R and generate pairwise XY-scatterplots of each pair of continuous predictors, while indicating the outcome using colour and/or shape of the symbols (you may find it convenient to use `pairs` plotting function). Describe your observations and discuss which of the variables are more likely to be informative with respect to discriminating these rooms (this literally means: just by looking at the plots, for the lack of better methods that we have not developed just yet, which variables do you think will be more useful for letting us tell which room the smartphone is in).
+> Once the dataset in loaded into R, please name appropriately data set attributes (variables), determine the number of variables (explain which ones are predictors and which one is the outcome) and observations in the dataset (R functions such as `dim`, `nrow`, `ncol` could be useful for this), generate summary of the data using `summary` function in R and generate pairwise XY-scatterplots of each pair of continuous predictors, while indicating the outcome using colour and/or shape of the symbols (you may find it convenient to use `pairs` plotting function). Describe your observations and discuss which of the variables are more likely to be informative with respect to discriminating these rooms (this literally means: just by looking at the plots, for the lack of better methods that we have not developed just yet, which variables do you think will be more useful for letting us tell which room the smartphone is in).
 
 ```{r wifiRead}
-#habDat <- read.table("haberman.data",sep=",")
-wifiDat <- read.table("wifi_localization.txt",sep="\t")
-
-#colnames(habDat) <- c("age","year","nodes","surv")
-colnames(wifiDat) <- c("WS1", "WS2", "WS3", "WS4", "WS5", "WS6", "WS7", "Class")
-summary(wifiDat$Class)
-
-# habDat$surv <- c("yes","no")[habDat$surv]
-wifiDat$Class <- c(1,2,3,4)[wifiDat$Class]
-
-#summary(habDat$surv)
-summary(wifiDat$Class)
-
-#habDat$surv <- factor(habDat$surv)
-wifiDat$Class <- factor(wifiDat$Class)
-
-#summary(habDat$surv)
-summary(wifiDat$Class)
-
-
-```
 
 # Put router number (1-7) on the x-axis, with corresponding signal strength on the y-axis.
 # Break the scatter plots into four separate graphs: Room 1-4
 
+# chop off last column which lists Room #
 wifi_loc_data_matrix = matrix(scan("wifi_localization.txt"), ncol = 8, byrow = TRUE)
 wifi_loc_data_matrix1 = matrix(wifi_loc_data_matrix[wifi_loc_data_matrix[,8] == 1], ncol = 8)
 wifi_loc_data_matrix2 = matrix(wifi_loc_data_matrix[wifi_loc_data_matrix[,8] == 2], ncol = 8)
+wifi_loc_data_matrix3 = matrix(wifi_loc_data_matrix[wifi_loc_data_matrix[,8] == 3], ncol = 8)
+wifi_loc_data_matrix4 = matrix(wifi_loc_data_matrix[wifi_loc_data_matrix[,8] == 4], ncol = 8)
 
-plot( xlab = "Router #",
-      ylab = "WiFi Signal Strength",
-      main = "WiFi Signal Strengths when device is located in Room 1")
-points(x = rep(c(1,2,3,4,5,6,7), 3), y = wifi_loc_data_matrix1[,-8], pch = 1)
+# chop off last column which lists Room #
+wifi_loc_data_matrix1 = wifi_loc_data_matrix1[,-8]
+wifi_loc_data_matrix2 = wifi_loc_data_matrix2[,-8]
+wifi_loc_data_matrix3 = wifi_loc_data_matrix3[,-8]
+wifi_loc_data_matrix4 = wifi_loc_data_matrix4[,-8]
 
+X11.options(width=10, height=100)
+par(mfrow = c(2,2))
 
-plot(x = rep(c(1,2,3,4,5,6,7), 3),
-      y = wifi_loc_data_matrix2[,-8],
-      xlab = "Router #",
-      ylab = "WiFi Signal Strength",
-      main = "WiFi Signal Strengths when device is located in Room 2")
+plot_lines <- function(m, l) {
+  plot(   xlab = "Router #",
+          ylab = "WiFi Signal Strength",
+          main = paste("Signal Strength from Room ", l),
+          x = rep(c(1,2,3,4,5,6,7), length(wifi_loc_data_matrix1) / 7),
+          y = wifi_loc_data_matrix1[,-8],
+          type = 'n')
 
-# colnames(m) <- c(purrr::map(1:7, purrr::map(1:3, function(x) paste("W", x)))
-colnames(m) <- c("W1", "W2", "W3", "W4", "W5", "W6", "W7", "Room")
-
->
-> Select all rows with "1" in the 8 column
-> matrix(m[m[,8] == 1], ncols=8)
->
-
-
-```{r wifiPlot,fig.height=5,fig.width=10}
-oldPar <- par(mfrow=c(1:2),ps=16)
-for ( iClass in sort(unique(wifiDat$Class)) ) {
-    plot(wifiDat[,c("age","nodes")],type="n",
-        main=paste("Classival:",iClass))
-    iTmp <- (1:length(levels(wifiDat$Class)))[levels(wifiDat$Class)==iClass]
-    points(wifiDat[wifiDat$Class==iClass,c("age","nodes")],col=iTmp,pch=iTmp)
+  colors <- terrain.colors(nrow(m))
+  i = 1
+  for (r in 1:nrow(m)) {
+      line_ <- c()
+      for (c in 1:ncol(m)) {
+         line_ = append(line_, m[r,c])
+      }
+      lines(1:7, line_, col=colors[i])
+      i = i + 1
+  }
 }
-par(oldPar)
+
+# points( x = rep(c(1,2,3,4,5,6,7), length(wifi_loc_data_matrix1) / 7),
+#         y = wifi_loc_data_matrix1[,-8],
+#         pch = 1)
+
+# Create the loop with r and c to iterate over the matrix
+
+plot_lines(wifi_loc_data_matrix1, "1")
+plot_lines(wifi_loc_data_matrix2, "2")
+plot_lines(wifi_loc_data_matrix3, "3")
+plot_lines(wifi_loc_data_matrix4, "4")
+
 ```
 
-```{r wifiPlotGG,fig.height=3,fig.width=6}
-ggplot(wifiDat,aes(x=age,y=nodes,colour=surv,shape=surv)) + 
-geom_point() + facet_wrap(~surv) + theme_bw()
-```
-```
+> Next, please comment on whether given the data at hand the problem of detecting room identity on the basis of the strength of the WiFi signal appears to be an easy or a hard one to solve. Try guessing, using your best intuition, what could be an error in predicting room identity in this dataset: 50%, 20%, 10%, 5%, 2%, less than that?
 
-Next, please comment on whether given the data at hand the problem of detecting room identity on the basis of the strength of the WiFi signal appears to be an easy or a hard one to solve. Try guessing, using your best intuition, what could be an error in predicting room identity in this dataset: 50%, 20%, 10%, 5%, 2%, less than that?  Later in the course we will work with this dataset again to actually develop such a classifier, and at that point you will get quantitative answer to this question. For now, what we are trying to achieve is to make you *think* about the data and to provide a (guesstimate) answer just from visual inspection of the scatterplots. Thus, there is no wrong answer at this point, just try your best, explain your (qualitative) reasoning, and make a note of your answer, so you can go back to it several weeks later.  
+Given the ease in which one can find ambiguity in signal strength readings across the seven routers, it appears 
 
-Finally, please reflect on potential usage of such a model (predicting room identity on the basis of WiFi signal strength) and discuss some of the limitations that the predictive performance of such a model may impose on its utility. Suppose that we can never achieve perfect identification (it's statistics after all), so we will end up with some finite error rate. For instance, if this model was integrated into a "smart home" setup that turns the light on or off depending on which room the smartphone is in, how useful would  be such model if its error rate was, say, 1%, 10% or 50%?  Can you think of alternative scenarios where this type of model could be used which would impose stricter or more lax requirements for its predictive performance?  Once again, the goal here is to prompt you to consider bigger picture aspects that would impact the utility of the model -- there is hardly right or wrong answer to this question, but please do present some kind of summary of your thoughts on this topic, even if in a couple of sentences.
 
+> Later in the course we will work with this dataset again to actually develop such a classifier, and at that point you will get quantitative answer to this question. For now, what we are trying to achieve is to make you *think* about the data and to provide a (guesstimate) answer just from visual inspection of the scatterplots. Thus, there is no wrong answer at this point, just try your best, explain your (qualitative) reasoning, and make a note of your answer, so you can go back to it several weeks later.  
+> 
+> Finally, please reflect on potential usage of such a model (predicting room identity on the basis of WiFi signal strength) and discuss some of the limitations that the predictive performance of such a model may impose on its utility. Suppose that we can never achieve perfect identification (it's statistics after all), so we will end up with some finite error rate. For instance, if this model was integrated into a "smart home" setup that turns the light on or off depending on which room the smartphone is in, how useful would  be such model if its error rate was, say, 1%, 10% or 50%?  
+
+_There's significant overlap of signal strengths across the four rooms, though the plots are distinct.  One would need many () readings (from apparently different parts of the room) to reduce the error rate._
+
+> Can you think of alternative scenarios where this type of model could be used which would impose stricter or more lax requirements for its predictive performance?  Once again, the goal here is to prompt you to consider bigger picture aspects that would impact the utility of the model -- there is hardly right or wrong answer to this question, but please do present some kind of summary of your thoughts on this topic, even if in a couple of sentences.
+
+_For a stricter scenario, we could use triangulation of signal strengths from three routers to give a precise position (a la GPS systems)._
+
+For a more lax scenario, we could ensure
 
 # Amount of Fund Raising Contributions (30 points)
 
-This dataset presents an example of a regression problem -- predicting dollar amount of donors' contributions from a direct mail campaign based on their demographics and history of past contributions.  This dataset is a cleaned up subset of one of the datasets used in data mining competitions in the late 90s and it comes with the requirement of describing its source in rather broad (i.e. non-specific) terms if or when it is used for educational purposes.  To load data into R please use file `fund-raising.csv` available at the course website in Canvas.  More details about the data attributes can be found in corresponding file `fund-raising-notes.txt` also available from our course website in Canvas. 
+> This dataset presents an example of a regression problem -- predicting dollar amount of donors' contributions from a direct mail campaign based on their demographics and history of past contributions.  This dataset is a cleaned up subset of one of the datasets used in data mining competitions in the late 90s and it comes with the requirement of describing its source in rather broad (i.e. non-specific) terms if or when it is used for educational purposes.  To load data into R please use file `fund-raising.csv` available at the course website in Canvas.  More details about the data attributes can be found in corresponding file `fund-raising-notes.txt` also available from our course website in Canvas. 
+> 
+> Once the dataset in loaded into R, please determine the number of variables (explain which ones are predictors -- categorical vs. continuous -- and which one is the outcome) and observations in the dataset (R functions such as `dim`, `nrow`, `ncol` could be useful for this), generate summary of the data using `summary` function in R and generate pairwise XY-scatterplots of each pair of *continuous* attributes.
+> 
+> Describe your observations and discuss which attributes might be more useful for predicting the outcome as defined in the `fund-raising-notes.txt` dataset description. 
+> 
+> Try being creative: visualizing and discussing potential associations between each of individual (continuous) predictor variables and the continuous outcome is relatively straightforward. But this time around you cannot really use the outcome to stratify the points in the *pairwise* predictor-predictor scatterplots same way we did it in Problem 1: there we had just four possible values of the (categorical) outcome, but how many distinct values of the donor contribution do we have now? Do the plots make much sense and are they even interpretable if you use all those distinct values of contributed amount, as they are? Is there a way around this?
 
-Once the dataset in loaded into R, please determine the number of variables (explain which ones are predictors -- categorical vs. continuous -- and which one is the outcome) and observations in the dataset (R functions such as `dim`, `nrow`, `ncol` could be useful for this), generate summary of the data using `summary` function in R and generate pairwise XY-scatterplots of each pair of *continuous* attributes.
-
-Describe your observations and discuss which attributes might be more useful for predicting the outcome as defined in the `fund-raising-notes.txt` dataset description. 
-
-Try being creative: visualizing and discussing potential associations between each of individual (continuous) predictor variables and the continuous outcome is relatively straightforward. But this time around you cannot really use the outcome to stratify the points in the *pairwise* predictor-predictor scatterplots same way we did it in Problem 1: there we had just four possible values of the (categorical) outcome, but how many distinct values of the donor contribution do we have now? Do the plots make much sense and are they even interpretable if you use all those distinct values of contributed amount, as they are? Is there a way around this?
 
 For **extra 5 points** generate boxplots for some of the continuous vs categorical predictors, rendering potential relationships between them.
 
 # Tibbles (extra 5 points)
 
-Fluency in R (as any other programming language) involves ability to look up, understand, and put to use as necessary new functionality that has not been explored before.  One of relatively recent additions to R are so-called tibbles that can be seen as ["modern take on data frames"](https://cran.r-project.org/web/packages/tibble/vignettes/tibble.html).  To earn extra points offered by this problem, please look up tibble use and constrast their behavior to that of conventional data frame using one of the datasets you have already created above.  To earn all points available your solution must include *more than one* example of substantive differences (same kind of difference illustrated by two datasets counts as *one example*).  Please also comment (briefly is fine) on why the use of tibbles may result in more robust code (or not, it's fine if you happen to find tibbles to be in fact clunkier and not resulting in cleaner code - but you have to argue your point, either way).
+> Fluency in R (as any other programming language) involves ability to look up, understand, and put to use as necessary new functionality that has not been explored before.  One of relatively recent additions to R are so-called tibbles that can be seen as ["modern take on data frames"](https://cran.r-project.org/web/packages/tibble/vignettes/tibble.html).  To earn extra points offered by this problem, please look up tibble use and constrast their behavior to that of conventional data frame using one of the datasets you have already created above.  To earn all points available your solution must include *more than one* example of substantive differences (same kind of difference illustrated by two datasets counts as *one example*).  Please also comment (briefly is fine) on why the use of tibbles may result in more robust code (or not, it's fine if you happen to find tibbles to be in fact clunkier and not resulting in cleaner code - but you have to argue your point, either way).
