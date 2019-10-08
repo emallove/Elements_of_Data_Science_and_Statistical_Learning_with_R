@@ -257,7 +257,7 @@ It is up to you as to whether you want to include `gender` attribute in your ana
 
 
 ```{r p1,fig.width=12,fig.height=4}
-t <- read.table("fund-raising-with-predictions.csv", sep=",", header=TRUE)
+fundRaisingData <- read.table("fund-raising-with-predictions.csv", sep=",", header=TRUE)
 
 # SKIP log-transform selected attributes:
 
@@ -269,39 +269,38 @@ t <- read.table("fund-raising-with-predictions.csv", sep=",", header=TRUE)
 # }
 # resize.win(1000,1000);
 # pdf(file = "Rplot.pdf")
-# pairs(t)
+# pairs(fundRaisingData)
 # dev.off()
 
 summaryMetrics <- NULL
 whichAll <- list()
 for ( myMthd in c("exhaustive", "backward", "forward", "seqrep") ) {
   # 15 because three categorical attributes are represented by dummy variables:
-  rsRes <- regsubsets(contrib~.,t[,1:12],method=myMthd,nvmax=12)
+  rsRes <- regsubsets(contrib~., fundRaisingData[, 1:12], method=myMthd, nvmax=12)
   summRes <- summary(rsRes)
   whichAll[[myMthd]] <- summRes$which
-  for ( metricName in c("rsq","rss","adjr2","cp","bic") ) {
-    summaryMetrics <- rbind(summaryMetrics,
-      data.frame(method=myMthd,metric=metricName,
-                nvars=1:length(summRes[[metricName]]),
+  for ( metricName in c("rsq", "rss", "adjr2", "cp", "bic") ) {
+    summaryMetrics <- rbind(summaryMetrics, 
+      data.frame(method=myMthd, metric=metricName, 
+                nvars=1:length(summRes[[metricName]]), 
                 value=summRes[[metricName]]))
   }
 }
-ggplot(summaryMetrics,aes(x=nvars,y=value,shape=method,colour=method)) + geom_path() + geom_point() + facet_wrap(~metric,scales="free") +   theme(legend.position="top")+theme_bw()
+ggplot(summaryMetrics, aes(x=nvars, y=value, shape=method, colour=method)) + geom_path() + geom_point() + facet_wrap(~metric, scales="free") +   theme(legend.position="top")+theme_bw()
 ```
 
 Four varaiables appear to minimize the residuals, as all meethods have a valley (or peak) at nvar = 4.
 
-```
-
-old.par <- par(mfrow=c(2,2),ps=16,mar=c(5,7,2,1))
+```{r whichAll}
+old.par <- par(mfrow=c(2, 2), ps=16, mar=c(5, 7, 2, 1))
 for ( myMthd in names(whichAll) ) {
-  image(1:nrow(whichAll[[myMthd]]),
-        1:ncol(whichAll[[myMthd]]),
-        whichAll[[myMthd]],xlab="N(vars)",ylab="",
-        xaxt="n",yaxt="n",breaks=c(-0.5,0.5,1.5),
-        col=c("white","gray"),main=myMthd)
-  axis(1,1:nrow(whichAll[[myMthd]]),rownames(whichAll[[myMthd]]))
-  axis(2,1:ncol(whichAll[[myMthd]]),colnames(whichAll[[myMthd]]),las=2)
+  image(1:nrow(whichAll[[myMthd]]), 
+        1:ncol(whichAll[[myMthd]]), 
+        whichAll[[myMthd]], xlab="N(vars)", ylab="", 
+        xaxt="n", yaxt="n", breaks=c(-0.5, 0.5, 1.5), 
+        col=c("white", "gray"), main=myMthd)
+  axis(1, 1:nrow(whichAll[[myMthd]]), rownames(whichAll[[myMthd]]))
+  axis(2, 1:ncol(whichAll[[myMthd]]), colnames(whichAll[[myMthd]]), las=2)
 }
 par(old.par)
 ```
@@ -312,6 +311,48 @@ The four variables to use in the heat maps are: mindate, avecontr, lastcontr, nc
 
 Splitting fund raising dataset into training and test as shown above, please calculate and plot training and test errors (MSE) for each model size for the methods available for `regsubsets`.  Using `which` field investigate stability of variable selection at each model size across multiple selections of training/test data.  Discuss these results -- e.g. what model size appears to be the most useful by this approach, what is the error rate corresponing to it, how stable is this conclusion across multiple methods for the best subset selection, how does this error compare to that of the predictions provided with the data (`predcontr` attribute)?
 
+```{r predictRegsubsets}
+predict.regsubsets <- function (object, newdata, id, ...) {
+  form=as.formula(object$call [[2]])
+  mat=model.matrix(form, newdata)
+  coefi=coef(object, id=id)
+  xvars=names (coefi)
+  mat[, xvars] %*% coefi
+}
+```
+
+
+```{r fundRaisingDataRegsubsetsTrainTest,fig.width=12,fig.height=6}
+dfTmp <- NULL
+myDimnames <- list(NULL, colnames(model.matrix(contrib~.,fundRaisingData)), c("exhaustive", "backward", "forward", "seqrep"))
+whichSum <- array(0, dim=c(15,15,4), dimnames = myDimnames)
+# Split data into training and test 30 times:
+nTries <- 30
+for ( iTry in 1:nTries ) {
+  bTrain <- sample(rep(c(TRUE,FALSE),length.out=nrow(fundRaisingData)))
+  # Try each method available in regsubsets
+  # to select the best model of each size:
+  for ( jSelect in c("exhaustive", "backward", "forward", "seqrep") ) {
+    rsTrain <- regsubsets(contrib~.,fundRaisingData[bTrain,],nvmax=15,method=jSelect)
+    # Add up variable selections:
+    whichSum[,,jSelect] <- whichSum[,,jSelect] + summary(rsTrain)$which
+    # Calculate test error for each set of variables
+    # using predict.regsubsets implemented above:
+    for ( kVarSet in 1:15 ) {
+      # make predictions:
+      testPred <- predict(rsTrain,fundRaisingData[!bTrain,],id=kVarSet)
+      # calculate MSE:
+      mseTest <- mean((testPred-fundRaisingData[!bTrain,"contrib"])^2)
+      # add to data.frame for future plotting:
+      dfTmp <- rbind(dfTmp,data.frame(sim=iTry,sel=jSelect,vars=kVarSet,
+      mse=c(mseTest,summary(rsTrain)$rss[kVarSet]/sum(bTrain)),trainTest=c("test","train")))
+    }
+  }
+}
+# plot MSEs by training/test, number of 
+# variables and selection method:
+ggplot(dfTmp,aes(x=factor(vars),y=mse,colour=sel)) + geom_boxplot()+facet_wrap(~trainTest)+theme_bw()
+```
 
 # Problem 3: lasso regression (15 points)
 
