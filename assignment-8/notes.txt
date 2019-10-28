@@ -1,0 +1,3 @@
+Why plot variances and means?  Why not just look at a flat list of variances - and note which columns have the highest variance?
+
+
