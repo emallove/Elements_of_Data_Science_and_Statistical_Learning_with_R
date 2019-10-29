@@ -99,8 +99,8 @@ pairs(whs2018annexBdat[,c(1,4,10,17,26)])
 myMeans = apply(whs2018annexBdat, 2, mean)
 myVars = apply(whs2018annexBdat, 2, var)
 
-pdf("means-vs-variances.pdf")
-par(fin=c(6,6), mar = rep(4.5, 4))
+# pdf("means-vs-variances.pdf")
+par(fin=c(5,4), mar = rep(4.5, 4))
 plot(myMeans,myVars,pch=19,cex=0.7, log="xy", xlab="means", ylab="variances")
 text(myMeans,myVars,       cex=0.2,           labels = names(myMeans), col="blue")
 dev.off()
@@ -136,11 +136,6 @@ symnum(myCor)
 ################################################################################
 ```
 
-```{r meanvarplot}
-library("mvabund")
-meanvar.plot(whs2018annexBdat)
-```
-
 ## Sub-problem 1b: PCA on untransformed and scaled WHS data (20 points)
 
 > Perform the steps outlined below *both* using *untransformed* data and
@@ -153,17 +148,30 @@ meanvar.plot(whs2018annexBdat)
 > you could compare and contrast.
 >
 > 1. Obtain results of principal components analysis of the data (by using `prcomp`)
+
+
+```{r lectureComputationOfPCA}
+# prcomp() is all it takes to run PCA in R [note that we use scaling here!]
+df = whs2018annexBdat
+px <- prcomp(df,retx=TRUE, scale=TRUE)
+px
+plot(px)
+```
+
+>
 > 2. Generate screen plot of PCA results (by calling `plot` on the result of `prcomp`)
+>
 
 
 ```{r plotPCAResult}
-oldpar=par (mfrow=c (1,2) )
-plot (x.n,y.n,pch=19,cex=0.7,xlab="Standardized X",ylab="Standardized Y")
-arrows (0,0,px$rotation[1,],px$rotation[2,], length=0.1,angle=20, col="red",lwd=3)
-plot (px$x,pch=19,cex=0.7,xlab="PC1", ylab="PC2" ,xlim=c (-3,3) ,ylim=c(-3,3))
-arrows (0,0,px$rotation[,1],px$rotation[,2], length=0.1,angle=20, col="red",lwd=3)
+# pdf("pca-of-WHS.pdf")
+par(fin=c(5,4), mar = rep(4.5, 4), mfrow=c(1,2), cex=0.4)
+# oldpar=par (mfrow=c(1,2))
+# plot (x.n,y.n,pch=19,cex=0.7,xlab="Standardized X",ylab="Standardized Y")
+# arrows (0,0,px$rotation[1,],px$rotation[2,], length=0.1,angle=20, col="red",lwd=3)
+plot (px$x,pch=19,xlab="PC1", ylab="PC2" ,xlim=c (-3,3) ,ylim=c(-3,3))
+# arrows (0,0,px$rotation[,1],px$rotation[,2], length=0.1,angle=20, col="blue",lwd=3)
 text (px$rotation[,1]*1.2,px$rotation[,2]*1.2, rownames(px$rotation), col="red")
-
 
 ```
 
@@ -175,55 +183,71 @@ text (px$rotation[,1]*1.2,px$rotation[,2]*1.2, rownames(px$rotation), col="red")
 >    attention to these and understand whether they indicate that something
 >    went wrong in our analyses.  In this particular case they are expected --
 >    why do you think that is?
+
+```{r biPlotWHS}
+# graphics.off()
+# pdf("WHS-biplot.pdf")
+par(fin=c(5,4), mar = rep(4.5, 4), mfrow=c(1,2), cex=0.4)
+biplot (px,pc.biplot=T)
+p1 = px$x[,1];
+p2 = px$x[,2]
+plot (p1/sd(p1), p2/sd(p2), type='n')
+text (p1/sd(p1), p2/sd(p2), 1:length(p1))
+arrows (0, 0, 2 * sd(p1) * px$rotation[,1], 2 * sd(p2) * px$rotation[,2], length=0.1, angle=20, col="red", lwd=2)
+text (2.1 * sd(p1) * px$rotation[,1], 2.1 * sd(p2)  * px$rotation[,2], c('x', 'y'), col="red")
+```
+
 > 4. The field `rotation` in the output of `prcomp` contains *loadings* of the
->    1st, 2nd, etc. principal components (PCs) -- that can interpreted as
+>    1st, 2nd, etc. principal components (PCs) -- that can be interpreted as
 >    contributions of each of the attributes in the input data to each of the
 >    PCs.
 >  + What attributes have the largest (by their absolute value) loadings for the
 >    first and second principal component?
+
+#### PCA 1 & PCA 2:
+```{r largestLoadingsInPCA2}
+tail(stack(sort(sapply(px$rotation[,1], abs))))
+tail(stack(sort(sapply(px$rotation[,2], abs))))
+```
+
 >  + How does it compare to what you have observed when comparing means and
 >    variances of all attributes in the world health statistics dataset?
+
+```{r meansAndVarsInWHS}
+stack(tail(sort(apply(whs2018annexBdat , 2, mean))))
+stack(tail(sort(apply(whs2018annexBdat , 2, var))))
+```
+
 > 5. Calculate percentage of variance explained (PVE) by the first five
 >    principal components (PCs).  You can find an example of doing this in ISLR
 >    Chapter 10.4 (Lab 1 on PCA).
 
+```{r ch10.4-lab1}
+# 10.4 Lab 1: Principal Components Analysis
+# In this lab, we perform PCA on the USArrests data set, which is part of
+# the base R package. The rows of the data set contain the 50 states, in
+# alphabetical order.
+states=row.names(USArrests )
+states
+# The columns of the data set contain the four variables.
+names(USArrests )
+# [1] "Murder" "Assault " "UrbanPop " "Rape"
+# We first briefly examine the data. We notice that the variables have vastly
+# different means.
+apply(USArrests , 2, mean)
+# Murder Assault UrbanPop Rape
+# 7.79 170.76 65.54 21.23
 
-```{r lectureComputationOfPCA}
-# prcomp() is all it takes to run PCA in R [note that we use scaling here!]
-# For educational purposes only, we also calculate covariance matrix and
-# "manually" diagonalize it in the code below
-df = as.data.frame(whs2018annexBdat)
-df = whs2018annexBdat
-# x.n<-(x-mean(x))/sd(x)
-# y.n<-(y-mean(y))/sd(y)
-# df=data.frame(x=x,y=y)
-# df.n<-data.frame(x=x.n,y=y.n)
-
-px <- prcomp(df,retx=TRUE, scale=TRUE)
-px
-# Standard deviations:
-# [1] 1.4...  0.1926997
-#         PC1        PC2
-# x 0.7071068 -0.7071068
-# y 0.7071068 0.7071068
-plot(px)
-
-# > cov(df.n) # covariance of scaled
-# x y
-# x 1.0000000 0.9614664
-# 0.9614664 1.0000000
-
-# > eigen(cov(df.n))
-# $ values
-# 
-# [1] 1.96146642 0.03853358
-# 
-# $ vectors
-#          [, 1]      [, 2]
-# [1,] 0.7071068 -0.7071068
-# [2,] 0.7071068  0.7071068
-# > sqrt (eigen(cov(df.n))$values)
-# [1] 1.4005236 0.1962997
+# Note that the `apply()` function allows us to apply a function—in this case,
+# the `mean()` function—to each row or column of the data set. The second
+# input here denotes whether we wish to compute the mean of the rows, 1,
+# or the columns, 2. We see that there are on average three times as many
+# rapes as murders, and more than eight times as many assaults as rapes.
+# We can also examine the variances of the four variables using the `apply()`
+# function.
+apply(USArrests , 2, var)
+# Murder Assault UrbanPop Rape
+# 19.0 6945.2 209.5 87.7
 ```
 
 > Now that you have PCA results when applied to untransformed and scaled WHS
@@ -248,6 +272,25 @@ plot(px)
 > about their (dis-)similarities in terms of associated health statistics?
 
 
+```{r biPlotWHSWhittledToAFewCountries}
+# graphics.off()
+# pdf("WHS-biplot-whittled.pdf")
+select_countries = c("United States of America", "United Kingdom", "China", "India", "Mexico", "Australia", "Israel", "Italy", "Ireland", "Sweden")
+par(fin=c(5,4), mar = rep(4.5, 4), mfrow=c(1,2), cex=0.4)
+# biplot (px,pc.biplot=T)
+p1 = px$x[select_countries,1];
+p2 = px$x[select_countries,2]
+plot (p1/sd(p1), p2/sd(p2), type='n')
+#text (p1/sd(p1), p2/sd(p2), 1:length(p1))
+text (p1/sd(p1), p2/sd(p2), labels=names(p1))
+# arrows (0, 0, 2.0 * sd(p1) * px$rotation[,1], 2.0 * sd(p2) * px$rotation[,2], length=0.1, angle=20, col="red", lwd=2)
+# text         (2.1 * sd(p1) * px$rotation[,1], 2.1 * sd(p2) * px$rotation[,2], c('x', 'y'), col="red")
+```
+
+As one might expect, with life expectancy and health care coverage loaded heavily in PC1 and PC2, the European countries
+(e.g., USA, UK, Ireland, Sweden) cluster together on the graph -- while China, India, and Mexico are a bit removed from 
+the Western nations.
+
 # Problem 2: K-means clustering (20 points)
 
 > The goal of this problem is to practice use of K-means clustering and in the
@@ -265,6 +308,15 @@ plot(px)
 > E.g. `plot(prcomp(xyz)$x[,1:2],col=kmeans(xyz,4)$cluster)` where `xyz` is
 > input data.  Describe the results.  Which countries are clustered together
 > for each of these choices of $K$?
+
+```{r kmeans}
+whs2018annexBdat_prcomp <- prcomp(whs2018annexBdat)$x[select_countries,1:2]
+plot(whs2018annexBdat_prcomp,col=kmeans(whs2018annexBdat,2)$cluster)
+text(whs2018annexBdat_prcomp,col=kmeans(whs2018annexBdat,2)$cluster, labels = rownames(whs2018annexBdat_prcomp), cex=0.5)
+plot(prcomp(whs2018annexBdat)$x[,1:2],col=kmeans(whs2018annexBdat,3)$cluster)
+plot(prcomp(whs2018annexBdat)$x[,1:2],col=kmeans(whs2018annexBdat,4)$cluster)
+
+```
 
 ## Sub-problem 2b: variability of k-means clustering and effect of `nstart` parameter (15 points)
 
