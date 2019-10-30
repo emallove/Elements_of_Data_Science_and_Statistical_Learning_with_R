@@ -14,6 +14,13 @@ library(MASS)
 library(ggplot2)
 knitr::opts_chunk$set(echo = TRUE)
 options(width = 200)
+
+print_output <- function(output, cex = 0.7) {
+  tmp <- capture.output(output)
+  plot.new()
+  text(0, 1, paste(tmp, collapse='\n'), adj = c(0,1), family = 'mono', cex = cex)
+  box()
+}
 ```
 
 # Preface
@@ -338,6 +345,60 @@ plot(prcomp(whs2018annexBdat)$x[,1:2],col=kmeans(whs2018annexBdat,4)$cluster)
 > ratio of within to between sum-of-squares.  What are the resulting ratios of
 > within to between sum-of-squares for each of these three k-means clustering
 > results (with random seeds of 1, 2 and 3)?
+
+```{r kmeans}
+
+# dev.off()
+graphics.off()
+par(fin=c(5,4), mar=c(0,0,0,0))
+# par()
+
+# set.seed(1)
+# k1 <- kmeans(whs2018annexBdat, centers=4, iter.max = 10, nstart = 1, algorithm = c("Hartigan-Wong", "Lloyd", "Forgy", "MacQueen"), trace=FALSE)
+# set.seed(2)
+# k2 <- kmeans(whs2018annexBdat, centers=4, iter.max = 10, nstart = 1, algorithm = c("Hartigan-Wong", "Lloyd", "Forgy", "MacQueen"), trace=FALSE)
+# set.seed(3)
+# k3 <- kmeans(whs2018annexBdat, centers=4, iter.max = 10, nstart = 1, algorithm = c("Hartigan-Wong", "Lloyd", "Forgy", "MacQueen"), trace=FALSE)
+
+library(cluster)
+library(fpc)
+library("factoextra")
+
+for (seed in 1:3) {
+ 
+  set.seed(seed)
+  km <- kmeans(whs2018annexBdat, centers = 4, nstart = 1)
+  clusplot(whs2018annexBdat, km$cluster, color=TRUE, shade=T,   lines=0, labels=5)
+  # text(whs2018annexBdat, labels = rownames(whs2018annexBdat))
+  # summary(km)
+  print_output(cat(seed, "\nwithinss: ", km$tot.withinss,
+                         "\nbetweenss: ", km$betweenss))
+}
+
+for (seed in 1:3) {
+ 
+  # set.seed(seed)
+}
+
+# Prettier plot
+set.seed(1)
+km <- kmeans(whs2018annexBdat, centers = 4, nstart = 1)
+fviz_cluster(km, whs2018annexBdat, labelsize = 5)
+set.seed(2)
+# km <- kmeans(whs2018annexBdat, centers = 4, nstart = 1)
+# fviz_cluster(km, whs2018annexBdat, labelsize = 5)
+# set.seed(3)
+# km <- kmeans(whs2018annexBdat, centers = 4, nstart = 1)
+# fviz_cluster(km, whs2018annexBdat, labelsize = 5)
+  
+# FIXME: Error: Figure margins are too large
+# plot(whs2018annexBdat, col = k1$cluster, mar=c(0,0,0,0))
+# points(k1$center, col=1:2, pch=8,cex=1)
+
+# plot(k2)
+# plot(k3)
+
+```
 
 > Please bear in mind that the actual cluster identity is assigned randomly and
 > does not matter -- i.e. if cluster 1 from the first run of `kmeans` (with
