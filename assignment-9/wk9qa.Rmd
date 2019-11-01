@@ -1,0 +1,209 @@
+---
+title: 'CSCI E-63C: Week 9 Q&A session'
+output:
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+library(cluster)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Questions
+
+* previous lectures, homeworks, midterm
+* this week quiz
+* this week assignment
+
+# USArrests reminder
+
+```{r}
+###?USArrests
+head(USArrests)
+apply(USArrests,2,sd)
+old.par<-par(mfrow=c(1,2),ps=16)
+plot(prcomp(USArrests))
+plot(prcomp(scale(USArrests)))
+par(old.par)
+old.par <- par(mfrow=c(1,2),ps=10)
+pcaResTmp <- prcomp(USArrests)
+cids <- kmeans(USArrests,centers=4,nstart=10)$cluster
+plot(pcaResTmp$x[,1:2],type="n",main="Original")
+text(pcaResTmp$x[,1:2],rownames(pcaResTmp$x),col=cids,pch=15+cids)
+pcaResTmp <- prcomp(scale(USArrests))
+cids <- kmeans(scale(USArrests),centers=4,nstart=10)$cluster
+plot(pcaResTmp$x[,1:2],type="n",main="Scaled")
+text(pcaResTmp$x[,1:2],rownames(pcaResTmp$x),col=cids,pch=15+cids)
+par(old.par)
+```
+
+# Within-cluster sum-of-squares on USArrests
+
+## Untransformed data
+
+```{r}
+w=numeric(20)
+for ( k in 1:20 ) {
+ kf=kmeans(USArrests,k)
+ w[k] = kf$tot.withinss
+}
+plot(1:20,w,type="b",lwd=2,pch=19,xlab="K", ylab=expression(SS[within]))
+
+for ( i in 1:10 ) {
+  wrnd = numeric()
+  for ( k in 1:20 ) {
+    krnd = kmeans(apply(USArrests,2,function(x)runif(length(x),min(x),max(x))),k)
+    wrnd[k] = krnd$tot.withinss
+  }
+  points(wrnd,type="l",col="red")
+}
+```
+
+## Scaled data
+
+```{r}
+#set.seed(112)
+w=numeric(20)
+for ( k in 1:20 ) {
+ kf=kmeans(scale(USArrests),k,nstart=10)
+ w[k] = kf$tot.withinss
+}
+plot(1:20,w,type="b",lwd=2,pch=19,xlab="K", ylab=expression(SS[within]))
+
+for ( i in 1:10 ) {
+  wrnd = numeric()
+  wsmpl = numeric()
+  for ( k in 1:20 ) {
+    krnd = kmeans(apply(scale(USArrests),2,function(x)runif(length(x),min(x),max(x))),k,nstart=10)
+    ksmpl = kmeans(apply(scale(USArrests),2,sample),k,nstart=10)
+    wrnd[k] = krnd$tot.withinss
+    wsmpl[k] = ksmpl$tot.withinss
+  }
+  points(wrnd,type="l",col="red")
+  points(wsmpl,type="l",col="blue")
+}
+```
+
+
+# Between-cluster sum-of-squares on USArrests
+
+## Untransformed data
+
+```{r}
+btw=numeric(20)
+for ( k in 1:20 ) {
+ kf=kmeans(USArrests,k)
+ btw[k] = kf$betweenss
+}
+plot(1:20,btw,type="b",lwd=2,pch=19,xlab="K", ylab=expression(SS[between]))
+
+for ( i in 1:10 ) {
+  btwrnd = numeric()
+  for ( k in 1:20 ) {
+    krnd = kmeans(apply(USArrests,2,function(x)runif(length(x),min(x),max(x))),k)
+    btwrnd[k] = krnd$betweenss
+  }
+  points(btwrnd,type="l",col="red")
+}
+```
+
+## Scaled data
+
+```{r}
+btw=numeric(20)
+for ( k in 1:20 ) {
+ kf=kmeans(scale(USArrests),k)
+ btw[k] = kf$betweenss
+}
+plot(1:20,btw,type="b",lwd=2,pch=19,xlab="K", ylab=expression("SS[between]"),ylim=c(0,250))
+
+for ( i in 1:10 ) {
+  btwrnd = numeric()
+  btwsmpl = numeric()
+  #rndDat <- apply(scale(USArrests),2,function(x)runif(length(x),min(x),max(x)))
+  #smplDat <- apply(scale(USArrests),2,sample)
+  for ( k in 1:20 ) {
+    krnd = kmeans(apply(scale(USArrests),2,function(x)runif(length(x),min(x),max(x))),k)
+    ksmpl = kmeans(apply(scale(USArrests),2,sample),k)
+    #krnd = kmeans(rndDat,k)
+    #ksmpl = kmeans(smplDat,k)
+    btwrnd[k] = krnd$betweenss
+    btwsmpl[k] = ksmpl$betweenss
+  }
+  points(btwrnd,type="l",col="red")
+  points(btwsmpl,type="l",col="blue")
+}
+```
+
+# CH-index on USArrests
+
+## Untransformed data
+
+```{r}
+chori=numeric(20)
+for ( k in 2:20 ) {
+  kf=kmeans(USArrests,k,nstart=10)
+  chori[k] = (kf$betweenss/(k-1)) / (kf$tot.withinss/(nrow(USArrests)-k))
+}
+plot(2:20,chori[-1],type="b", lwd=2,pch=19,xlab="K", ylab="CH index",ylim=range(chori[-1])*c(1/2,1))
+
+for ( i in 1:10 ) {
+  chrnd = numeric()
+  for ( k in 2:20 ) {
+    krnd = kmeans(apply(USArrests,2,function(x)runif(length(x),min(x),max(x))),k,nstart=10)
+    chrnd[k] = (krnd$betweenss/(k-1)) / (krnd$tot.withinss/(nrow(USArrests)-k))
+  }
+  points(2:20,chrnd[-1],type="l",col="red")
+}
+```
+
+## Scaled data
+
+```{r}
+chori=numeric(20)
+for ( k in 2:20 ) {
+  kf=kmeans(scale(USArrests),k,nstart=10)
+  chori[k] = (kf$betweenss/(k-1)) / (kf$tot.withinss/(nrow(USArrests)-k))
+}
+plot(2:20,chori[-1],type="b", lwd=2,pch=19,xlab="K", ylab="CH index",xlim=c(1,20),ylim=range(chori[-1])*c(1/2,1))
+
+for ( i in 1:10 ) {
+  chrnd = numeric()
+  chsmpl = numeric()
+  for ( k in 2:20 ) {
+    krnd = kmeans(apply(scale(USArrests),2,function(x)runif(length(x),min(x),max(x))),k,nstart=10)
+    chrnd[k] = (krnd$betweenss/(k-1)) / (krnd$tot.withinss/(nrow(USArrests)-k))
+    ksmpl = kmeans(apply(scale(USArrests),2,sample),k,nstart=10)
+    chsmpl[k] = (ksmpl$betweenss/(k-1)) / (ksmpl$tot.withinss/(nrow(USArrests)-k))
+  }
+  points(2:20,chrnd[-1],type="l",col="red")
+  points(2:20,chsmpl[-1],type="l",col="blue")
+}
+```
+
+# Gap statistics on USArrests
+
+```{r}
+old.par <- par(mfrow=c(1,2),ps=16)
+cgOri <- clusGap(USArrests,kmeans,20,d.power=2)
+plot(cgOri)
+cgScaled <- clusGap(scale(USArrests),kmeans,20,d.power=2)
+plot(cgScaled)
+par(old.par)
+head(cgScaled$Tab)
+maxSE(cgScaled$Tab[,"gap"],cgScaled$Tab[,"SE.sim"])
+```
+
+# Silhouette on K-means results for USArrests
+
+```{r,fig.width=18,fig.height=12}
+old.par <- par(mfrow=c(2,3),ps=16)
+scUSArrests <- scale(USArrests)
+DscUSArrests <- dist(scUSArrests)
+for ( kTmp in 2:7 ) {
+  kmResTmp <- kmeans(scUSArrests,kTmp,nstart=100)
+  plot(silhouette(kmResTmp$cluster,DscUSArrests))
+}
+par(old.par)
+```
