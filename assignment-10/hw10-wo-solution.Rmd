@@ -1,0 +1,175 @@
+---
+title: "CSCI E-63C Week 10 Problem Set"
+author: "Ethan Mallove"
+date: "Nov 7, 2019"
+output:
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+library(MASS)
+library(class)
+library(ggplot2)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Preface
+
+> For this week problem set we will use WiFi localization data (the one we worked with on week 2) to fit logistic regression model and evaluate performance of LDA, QDA and KNN classifiers.  As we have seen earlier this dataset should allow to locate phones fairly well by relying on the strength of WiFi signal, so we should expect to see fairly low error rates for our classifiers.  Let's see whether some of those classifiers perform better than others on this data.
+> 
+> **Important note:** *For the purposes of all problems in this week problem set, we will be predicting whether the phone is at location=3 or not, as opposed to working with multi-class predictor.  In other words, before you proceed with any of the problems in this assignment, please convert the four-levels outcome to the outcome with only two levels: location=3 (must be 500 of those) and not (must be 1500 of them).*
+> 
+> *If you are creating a new column containing this binary outcome, please make sure that the original outcome with four columns is NOT used inadvertently as one of the predictors.  If you are getting invariably 100% accuracy regardless of the choice of the method or split of the data into training and test, chances are your code is using original four-levels outcome as a predictor.*
+
+```{r wifiData}
+library(MASS)
+# An extra boolean column has been added to mark location=3 true or false (0, 1)
+wifiData = matrix(scan("wifi_localization.txt"), ncol = 9, byrow = TRUE)
+```
+
+# Problem 1 (10 points): logistic regression
+
+> Fit logistic regression model of the binary categorical outcome (location=3 or not) using seven WiFi signals strengths as predictors in the model.  Produce summary of the model, describe which attributes appear to be significantly associated with the categorical outcome in this model.  Use this model to make predictions on the entire dataset and compare these predictions and corresponding true values of the class attribute using confusion matrix (i.e. contingency table).  Calculate error rate (would this be training or test error in this case?), sensitivity and specificity (assuming that we are predicting class "location=3").  Describe the results.
+
+
+```{r}
+glmFit <- glm(V9~.,data=as.data.frame(wifiData),family=binomial)
+summary(glmFit)
+# p<0.05 in randomized data:
+# pTmp <- NULL
+# for ( iSim in 1:1000 ) {
+#   wTmp <- wifiData
+#   wTmp[,9] <- sample(wTmp[,9])
+#   glmSim <- glm(V9~.,data=as.data.frame(wTmp),family=binomial)
+#   pTmp <- rbind(pTmp,summary(glmSim)$coefficients[-1,"Pr(>|z|)"])
+# }
+# dim(pTmp)
+# sum(pTmp<0.05)/prod(dim(pTmp))
+# sum(apply(pTmp,1,min)<0.05)/nrow(pTmp)
+# sum(pTmp<0.03)/prod(dim(pTmp))
+# sum(apply(pTmp,1,min)<0.03)/nrow(pTmp)
+```
+
+```{r 2}
+        predict(glmFit,type="response")
+
+boxplot(predict(glmFit,type="response")~wifiData[,9])
+quantile(predict(glmFit,type="response"))
+table(wifiData[,9],c("loc 3","loc not 3")[1+(predict(glmFit)>0.0)])
+tblTmp <- table(wifiData[,9],c("loc 3","loc not 3")[1+(predict(glmFit,type="response")>0.5)])
+tblTmp
+# sensitivity for predicting "loc 3":
+tblTmp[2,2] / sum(tblTmp[2,])
+# specificity for predicting "loc not 3":
+tblTmp[1,1] / sum(tblTmp[1,])
+rocDatTmp <- NULL
+
+# scratch
+p <- predict(glmFit,type="response")
+
+for ( qTmp in quantile(predict(glmFit,type="response"),(0:10)/10) ) {
+  tblTmp <- table(wifiData[,9], factor(c("loc 3", "loc not 3")[1+(predict(glmFit, type="response")>=qTmp)], c("loc 3", "loc not 3")))
+  cat(qTmp,tblTmp[2,2] / sum(tblTmp[2,]),tblTmp[1,1] / sum(tblTmp[1,]),fill=TRUE)
+  rocDatTmp <- rbind(rocDatTmp,c(1-tblTmp[1,1] / sum(tblTmp[1,]),tblTmp[2,2] / sum(tblTmp[2,])))
+}
+plot(rocDatTmp,ylab="Sensitivity",xlab="1-Specificity")
+abline(0,1,lty=2)
+```
+
+
+Sensitivity: 0.522
+Specificity: 0.913333
+
+# Problem 2 (10 points): LDA and QDA
+
+> Using LDA and QDA implementations available in the package `MASS`, fit LDA and QDA classifiers on the entire dataset and calculate confusion matrix, (training) error rate, sensitivity and specificity for each of them.  Compare them to those of logistic regression.  Describe the results.
+
+```{r wifiLDA}
+wifiLDA <- lda(V9~.,data=as.data.frame(wifiData))
+plot(wifiLDA)
+tblTmp <- table(wifiData[,9], predict(wifiLDA, newdata=as.data.frame(wifiData))$class)
+tblTmp[2,2] / sum(tblTmp[2,])
+tblTmp[1,1] / sum(tblTmp[1,])
+```
+
+Confusion matrix:
+
+```{r wifiLDA__ConfusionMatrix}
+table(wifiData[,9], c(0,1)[1 + (predict(wifiLDA, newdata=as.data.frame(wifiData), type="response")$x > quantile(predict(wifiLDA, type="response")$x, 0.85))])
+```
+
+Sensitivity: 0.512
+Specificity: 0.9213333
+
+```{r wifiQDA}
+library(MASS)
+# debug(qda)
+wifiDataFrame <- as.data.frame(wifiData)
+colnames(wifiDataFrame) = c("V1","V2","V3","V4","V5","V6","V7","V8","V9")
+wifiQDA <- qda(V9~., data=wifiDataFrame[,-8])
+# plot(wifiQDA)
+tblTmp <- table(wifiData[,9], predict(wifiQDA, newdata=as.data.frame(wifiData))$class)
+tblTmp[2,2] / sum(tblTmp[2,])
+tblTmp[1,1] / sum(tblTmp[1,])
+```
+
+Big improvement in sensitivity (from LDA and logistic regression)
+
+Sensitivity: 0.882
+Specificity: 0.9926667
+
+# Problem 3 (10 points): KNN
+
+> Using `knn` from library `class`, fit KNN classifiers for the entire dataset and calculate confusion matrix, (training) error rate, sensitivity/specificity for  $k=1$, $5$ and $25$ nearest neighbors models.  Compare them to the corresponding results from LDA, QDA and logistic regression. Describe results of this comparison and discuss whether it is surprising to see low *training* error for KNN classifier with $k=1$.
+
+```{r,fig.width=12,fig.height=6}
+##?knn
+trainIds = sample(1:nrow(wifiData), 1000);
+testIds = sample(1:nrow(wifiData), 1000);
+wifiKNN <- knn(train = as.matrix(wifiData[trainIds,]), test = as.matrix(wifiData[testIds,]), cl = as.matrix(wifiData[trainIds,9]), k = 1)
+tblTmp <- table(wifiData[testIds,9], wifiKNN)
+tblTmp
+tblTmp[2,2] / sum(tblTmp[2,])
+tblTmp[1,1] / sum(tblTmp[1,])
+# KNN on all useable attributes:
+wifiDataScaled <- wifiData
+wifiDataScaled <- scale(wifiDataScaled)
+
+rocDatTmp <- NULL
+for ( kTmp in c(1, 5, 25) ) {
+  #knnTmp <- knn(train = as.matrix(wifiData[,1:7]), test = as.matrix(wifiData[,1:7]), cl = wifiData[,9], k=kTmp)
+  knnTmp <- knn(train = as.matrix(wifiData[trainIds,]), test = as.matrix(wifiData[testIds,]), cl = as.matrix(wifiData[trainIds,9]), k = kTmp)
+  tblTmp <- table(wifiData[testIds,9], knnTmp)
+  print(paste0("K = ", kTmp))
+  print(tblTmp)
+  rocDatTmp <- rbind(rocDatTmp, c(kTmp, 1-tblTmp[1,1] / sum(tblTmp[1, ]), tblTmp[2, 2] / sum(tblTmp[2, ])))
+}
+old.par <- par(mfrow=c(1,2))
+plot(rocDatTmp[,-1],xlab="1-Specificity",ylab="Sensitivity")
+abline(0,1,lty=2)
+plot(rocDatTmp[,1],1-rocDatTmp[,2],xlab="K",ylab="",ylim=c(0,1))
+points(rocDatTmp[,1],rocDatTmp[,3],col=2)
+legend("topleft",c("Specificity","Sensitivity"),col=1:2,pch=1,text.col=1:2)
+par(old.par)
+```
+
+
+Confusion matrix:
+
+```{r wifiKNN__ConfusionMatrix}
+table(wifiData[,9], c(0,1)[1 + (predict(wifiKNN, newdata=as.data.frame(wifiData), type="response")$x > quantile(predict(wifiKNN, type="response")$x, 0.85))])
+```
+
+
+# Problem 4 (30 points): compare test errors of logistic regression, LDA, QDA and KNN
+
+> Using resampling approach of your choice (e.g. cross-validation, bootstrap, etc.) obtain test error as well as sensitivity and specificity for each of these methods (logistic regression, LDA, QDA, KNN with $k=1,7,55,351$).  Present results in the form of boxplots, compare test error/sensitivity/specificity across these methods and discuss their relative performance.
+
+# Extra 5 points problem: naive Bayes classifier
+
+> Fit naive Bayes classifier (see lecture slides for examples of using `naiveBayes` function from package `e1071`) to the WiFi localization dataset with binary (location=3 or not) outcome and assess its performance on test data by resampling along with logistic regression, LDA, QDA and KNN in the Problem 4 above.
+
+# Extra 10 points problem: interaction terms in logistic regression
+
+> Add pairwise interaction terms to the logistic regression model fit in the Problem 1 above and evaluate impact of their addition on training **and** test error.  You can add all pairwise interaction terms or a subset of them, in which case the rationale behind selecting such a subset has to be described in your solution.

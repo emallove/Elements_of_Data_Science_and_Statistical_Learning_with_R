@@ -1,0 +1,338 @@
+---
+title: "Week 10 Q&A session"
+output:
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+library(ISLR)
+library(MASS)
+library(class)
+library(ggplot2)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Questions
+
+* previous lectures, homeworks, midterm
+* this week quiz
+* this week assignment
+
+
+# Ch.4 Ex.4
+
+*"When the number of features $p$ is large, there tends to be a deterioration in the performance of KNN and other local approaches that perform prediction using only observations that are near the test observation for which a prediction must be made. This phenomenon is known as the curse of dimensionality, and it ties into the fact that non-parametric approaches often perform poorly when $p$ is large. We will now investigate this curse."*
+
+*"(a) Suppose that we have a set of observations, each with measurements on $p = 1$ feature, $X$. We assume that $X$ is uniformly (evenly) distributed on $[0, 1]$. Associated with each observation is a response value. Suppose that we wish to predict a test observation's response using only observations that are within 10% of the range of $X$ closest to that test observation. For instance, in order to predict the response for a test observation with $X = 0.6$, we will use observations in the range $[0.55, 0.65]$. On average, what fraction of the available observations will we use to make the prediction?"*
+
+```{r}
+thresh <- 0.1
+nobs <- 10000
+mean(runif(nobs)<thresh)
+```
+
+*"(b) Now suppose that we have a set of observations, each with measurements on $p = 2$ features, $X_1$ and $X_2$. We assume that $(X_1,X_2)$ are uniformly distributed on $[0, 1] \times [0, 1]$. We wish to predict a test observation's response using only observations that are within 10% of the range of $X_1$ and within 10% of the range of $X_2$ closest to that test observation. For instance, in order to predict the response for a test observation with $X_1 = 0.6$ and $X_2 = 0.35$, we will use observations in the range $[0.55, 0.65]$ for $X_1$ and in the range $[0.3, 0.4]$ for $X_2$. On average, what fraction of the available observations will we use to make the prediction?"*
+
+```{r}
+# p=2:
+mean(runif(nobs)<thresh&runif(nobs)<thresh)
+# p=3:
+mean(runif(nobs)<thresh&runif(nobs)<thresh&runif(nobs)<thresh)
+# p=10:
+nvars <- 10
+nobs <- 100000
+thresh <- 0.5
+xTmp <- matrix(runif(nobs*nvars),ncol=nvars)
+mean(rowMeans(xTmp<thresh)==1)
+thresh ^ nvars
+mean(rowMeans(xTmp>0.1 & xTmp<0.9) == 1)
+0.8^nvars
+```
+
+*"(c) Now suppose that we have a set of observations on $p = 100$ features. Again the observations are uniformly distributed on each feature, and again each feature ranges in value from 0 to 1. We wish to predict a test observation's response using observations within the 10% of each feature's range that is closest to that test observation. What fraction of the available observations will we use to make the prediction?"*
+
+```{r}
+0.1^100
+```
+
+*"(d) Using your answers to parts (a)-(c), argue that a drawback of KNN when $p$ is large is that there are very few training observations "near" any given test observation."*
+
+*"(e) Now suppose that we wish to make a prediction for a test observation by creating a $p$-dimensional hypercube centered around the test observation that contains, on average, 10% of the training observations. For $p = 1, 2,$ and $100$, what is the length of each side of the hypercube? Comment on your answer."*
+
+```{r}
+for ( nvars in c(1,2,5,10,20,50,100) ) {
+  cat("p =",nvars,", x =", 0.1^(1/nvars),fill=TRUE)
+}
+```
+
+# Ch.4 Ex.10
+
+*"This question should be answered using the `Weekly` data set, which is part of the ISLR package. This data is similar in nature to the `Smarket` data from this chapter's lab, except that it contains 1,089 weekly returns for 21 years, from the beginning of 1990 to the end of 2010."*
+
+*"(a) Produce some numerical and graphical summaries of the `Weekly` data. Do there appear to be any patterns?"*
+
+```{r}
+head(Weekly)
+range(Weekly[-nrow(Weekly),"Lag1"]-Weekly[-1,"Lag2"])
+range(Weekly[-nrow(Weekly),"Lag4"]-Weekly[-1,"Lag5"])
+summary(Weekly)
+pairs(Weekly[,colnames(Weekly)!="Direction"],col=Weekly[,"Direction"])
+ggplot(Weekly,aes(x=abs(Today)))+geom_histogram(aes(y=..density..),binwidth = 1,fill="lightgray",colour="black")+facet_wrap(~Direction)+theme_bw()
+plot(Weekly[,"Today"],type="l")
+plot(Weekly[,c("Year","Today")])
+plot(Weekly[,c("Volume","Today")],log="x")
+plot(plyr::ddply(Weekly,~Year,plyr::summarize,ave=mean(Today)),type="b")
+```
+
+*"(b) Use the full data set to perform a logistic regression with `Direction` as the response and the five lag variables plus `Volume` as predictors. Use the summary function to print the results. Do any of the predictors appear to be statistically significant? If so, which ones?"*
+
+```{r}
+glmFit <- glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=Weekly,family=binomial)
+summary(glmFit)
+# p<0.05 in randomized data:
+pTmp <- NULL
+for ( iSim in 1:1000 ) {
+  wTmp <- Weekly
+  wTmp$Direction <- sample(wTmp$Direction)
+  glmSim <- glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=wTmp,family=binomial)
+  pTmp <- rbind(pTmp,summary(glmSim)$coefficients[-1,"Pr(>|z|)"])
+}
+dim(pTmp)
+sum(pTmp<0.05)/prod(dim(pTmp))
+sum(apply(pTmp,1,min)<0.05)/nrow(pTmp)
+sum(pTmp<0.03)/prod(dim(pTmp))
+sum(apply(pTmp,1,min)<0.03)/nrow(pTmp)
+```
+
+### Decision boundaries for unbalanced datasets
+
+```{r,fig.width=12,fig.height=6}
+nSmpl <- 10000
+dMu <- 2
+plot(c(-2,4),c(0,0.4),type="n")
+for ( i in 1:3 ) {
+  frac1 <- c(0.1,0.5,0.9)[i]
+  points((-100:400)/50,(1-frac1)*dnorm((-100:400)/50),col=1,type="l",lty=i)
+  points((-100:400)/50,frac1*dnorm((-100:400)/50,mean=dMu),col=2,type="l",lty=i)
+}
+```
+
+```{r,fig.width=12,fig.height=4,warning=FALSE}
+old.par<-par(mfrow=c(1,3))
+for ( iWght in 1:2 ) {
+  plot(c(-2,4),c(0,1),type="n",main=c("Unweighted","Weighted")[iWght],xlab="X",ylab="Pr(1|X)")
+  abline(v=dMu/2,lty=2)
+  abline(h=(1:9)/10,lty=2)
+  for ( frac1 in (1:9)/10 ) {
+    x <- rnorm(nSmpl)
+    y <- rep(0,nSmpl)
+    id1 <- 1:floor(frac1*nSmpl)
+    x[id1] <- x[id1] + dMu
+    y[id1] <- 1
+    wghts <- NULL
+    if ( iWght == 2 ) {
+      wghts <- c(mean(y),1-mean(y))[y+1]
+    }
+    glmRes <- glm(y~x,family=binomial,weights=wghts)
+    cat(iWght,ifelse(is.null(wghts),sum(y),sum(wghts*y)),ifelse(is.null(wghts),sum(predict(glmRes,type="response")),sum(wghts*predict(glmRes,type="response"))),coef(glmRes),mean(y==(predict(glmRes)>0)),mean(y==(predict(glmRes,type="response")>mean(y))),fill=TRUE)
+    points((-10:40)/5,predict(glmRes,newdata=data.frame(x=(-10:40)/5),type="response"),type="l",col=frac1*10)
+    abline(v=-coef(glmRes)[1]/coef(glmRes)[2],lty=2,col=frac1*10)
+  }
+}
+plot(c(-2,4),c(0,1),type="n",main="Unweighted Error Rate",xlab="Cutoff",ylab="")
+for ( frac1 in (1:9)/10 ) {
+  points((-10:40)/5,(1-frac1)*pnorm((-10:40)/5,lower.tail=FALSE)+frac1*pnorm((-10:40)/5,mean=dMu,lower.tail=TRUE),type="l",col=frac1*10)
+  optRes <- optimize(function(x)(1-frac1)*pnorm(x,lower.tail=FALSE)+frac1*pnorm(x,mean=dMu,lower.tail=TRUE),c(-2,4))
+  points(optRes$minimum,optRes$objective,col=frac1*10,pch=20,cex=2)
+}
+par(old.par)
+```
+
+On unbalanced datasets in the absence of weights decision boundary defined by `predict(...,type="response")==0.5` (or, equivalently, `predict(...,type="link")==0`) minimizes error subject to the proportions of the classes in the training data.  Proper use of weights allows to minimize it for balanced sample (population). Also, *expected* number of class labels equals to the *observed*.
+
+*"(c) Compute the confusion matrix and overall fraction of correct predictions. Explain what the confusion matrix is telling you about the types of mistakes made by logistic regression."*
+
+```{r}
+boxplot(predict(glmFit,type="response")~Weekly$Direction)
+quantile(predict(glmFit,type="response"))
+table(Weekly$Direction,c("Down","Up")[1+(predict(glmFit)>0.0)])
+tblTmp <- table(Weekly$Direction,c("Down","Up")[1+(predict(glmFit,type="response")>0.5)])
+tblTmp
+# sensitivity for predicting "Up":
+tblTmp[2,2] / sum(tblTmp[2,])
+# specificity for predicting "Up":
+tblTmp[1,1] / sum(tblTmp[1,])
+rocDatTmp <- NULL
+for ( qTmp in quantile(predict(glmFit,type="response"),(0:10)/10) ) {
+  tblTmp <- table(Weekly$Direction,factor(c("Down","Up")[1+(predict(glmFit,type="response")>=qTmp)],c("Down","Up")))
+  cat(qTmp,tblTmp[2,2] / sum(tblTmp[2,]),tblTmp[1,1] / sum(tblTmp[1,]),fill=TRUE)
+  rocDatTmp <- rbind(rocDatTmp,c(1-tblTmp[1,1] / sum(tblTmp[1,]),tblTmp[2,2] / sum(tblTmp[2,])))
+}
+plot(rocDatTmp,ylab="Sensitivity",xlab="1-Specificity")
+abline(0,1,lty=2)
+```
+
+```{r}
+assess.prediction=function(truth,predicted) {
+   # same length:
+   if ( length(truth) != length(predicted) ) {
+     stop("truth and predicted must be same length!")
+   }
+   # check for missing values (we are going to 
+   # compute metrics on non-missing values only)
+   bKeep = ! is.na(truth)  & ! is.na(predicted)
+   predicted = predicted[ bKeep ]
+   truth = truth[ bKeep ]
+   # only 0 and 1:
+   if ( sum(truth%in%c(0,1))+sum(predicted%in%c(0,1))!=2*length(truth) ) {
+     stop("only zeroes and ones are allowed!")
+   }
+   cat("Total cases that are not NA: ",
+         length(truth),"\n",sep="") 
+   # overall accuracy of the test: how many cases 
+   # (both positive and 
+   # negative) we got right:
+   cat("Correct predictions (accuracy): ",
+     sum(truth==predicted),
+     "(",signif(sum(truth==predicted)*100/
+     length(truth),3),"%)\n",sep="")
+   # how predictions align against known 
+   # training/testing outcomes:
+   # TP/FP= true/false positives, 
+   # TN/FN=true/false negatives
+   TP = sum(truth==1 & predicted==1)
+   TN = sum(truth==0 & predicted==0)
+   FP = sum(truth==0 & predicted==1)
+   FN = sum(truth==1 & predicted==0)
+   P = TP+FN  # total number of
+         # positives in the truth data
+   N = FP+TN  # total number of
+              # negatives
+   cat("TP, TN, FP, FN, P, N:",TP, TN, FP, FN, P, N, fill=TRUE)
+   cat("TPR (sensitivity)=TP/P: ",
+       signif(100*TP/P,3),"%\n",sep="")
+   cat("TNR (specificity)=TN/N: ",
+       signif(100*TN/N,3),"%\n",sep="")
+   cat("PPV (precision)=TP/(TP+FP): ",
+       signif(100*TP/(TP+FP),3),"%\n",sep="")
+   cat("FDR (false discovery)=1-PPV: ",
+       signif(100*FP/(TP+FP),3),"%\n",sep="")
+   cat("FPR =FP/N=1-TNR: ",
+      signif(100*FP/N,3),"%\n",sep="")
+}
+```
+
+```{r}
+assess.prediction(as.numeric(Weekly$Direction)-1,as.numeric(predict(glmFit,type="response")>0.5))
+# majority vote:
+table(Weekly$Direction) / nrow(Weekly)
+```
+
+*"(d) Now fit the logistic regression model using a training data period from 1990 to 2008, with `Lag2` as the only predictor. Compute the confusion matrix and the overall fraction of correct predictions for the held out data (that is, the data from 2009 and 2010)."*
+
+```{r}
+# train on year 2008 or before (why only Lag2??):
+glmFitLeq2008 <- glm(Direction~Lag2,data=Weekly[Weekly$Year<=2008,],family=binomial)
+summary(glmFitLeq2008)
+tblTmp <- table(Weekly[Weekly$Year>2008,"Direction"],c("Down","Up")[1+(predict(glmFitLeq2008,newdata=Weekly[Weekly$Year>2008,],type="response")>0.5)])
+tblTmp
+tblTmp[2,2] / sum(tblTmp[2,])
+tblTmp[1,1] / sum(tblTmp[1,])
+assess.prediction(as.numeric(Weekly[Weekly$Year>2008,"Direction"])-1,as.numeric(predict(glmFitLeq2008,newdata=Weekly[Weekly$Year>2008,],type="response")>median(predict(glmFitLeq2008,type="response"))))
+```
+
+*"(e) Repeat (d) using LDA."*
+
+```{r}
+ldaLeq2008 <- lda(Direction~Lag2,data=Weekly[Weekly$Year<=2008,])
+ldaLeq2008 <- lda(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=Weekly[Weekly$Year<=2008,])
+ldaLeq2008
+plot(ldaLeq2008)
+tblTmp <- table(Weekly[Weekly$Year>2008,"Direction"],predict(ldaLeq2008,newdata=Weekly[Weekly$Year>2008,])$class)
+tblTmp
+tblTmp[2,2] / sum(tblTmp[2,])
+tblTmp[1,1] / sum(tblTmp[1,])
+table(Weekly[Weekly$Year>2008,"Direction"],c("Down","Up")[1+(predict(glmFitLeq2008,newdata=Weekly[Weekly$Year>2008,],type="response")>quantile(predict(glmFitLeq2008,type="response"),0.85))])
+```
+
+*"(f) Repeat (d) using QDA."*
+
+```{r}
+qdaLeq2008 <- qda(Direction~Lag2,data=Weekly[Weekly$Year<=2008,])
+qdaLeq2008
+#plot(qdaLeq2008)
+tblTmp <- table(Weekly[Weekly$Year>2008,"Direction"],predict(qdaLeq2008,newdata=Weekly[Weekly$Year>2008,])$class)
+tblTmp
+tblTmp[2,2] / sum(tblTmp[2,])
+tblTmp[1,1] / sum(tblTmp[1,])
+```
+
+*"(g) Repeat (d) using KNN with $K = 1$."*
+
+```{r,fig.width=12,fig.height=6}
+##?knn
+knnLeq2008PredGt2008 <- knn(as.matrix(Weekly[Weekly$Year<=2008,"Lag2"]),as.matrix(Weekly[Weekly$Year>2008,"Lag2"]),Weekly[Weekly$Year<=2008,"Direction"],k=1)
+tblTmp <- table(Weekly[Weekly$Year>2008,"Direction"],knnLeq2008PredGt2008)
+tblTmp
+tblTmp[2,2] / sum(tblTmp[2,])
+tblTmp[1,1] / sum(tblTmp[1,])
+# KNN on all useable attributes:
+WeeklyScaled <- Weekly
+WeeklyScaled[,c("Volume",paste0("Lag",1:5))] <- scale(WeeklyScaled[,c("Volume",paste0("Lag",1:5))])
+knnLeq2008fullPredGt2008 <- knn(as.matrix(Weekly[Weekly$Year<=2008,c("Volume",paste0("Lag",1:5))]),as.matrix(Weekly[Weekly$Year>2008,c("Volume",paste0("Lag",1:5))]),Weekly[Weekly$Year<=2008,"Direction"],k=1)
+table(Weekly[Weekly$Year>2008,"Direction"],knnLeq2008fullPredGt2008)
+knn5Leq2008fullPredGt2008 <- knn(as.matrix(Weekly[Weekly$Year<=2008,c("Volume",paste0("Lag",1:5))]),as.matrix(Weekly[Weekly$Year>2008,c("Volume",paste0("Lag",1:5))]),Weekly[Weekly$Year<=2008,"Direction"],k=5)
+table(Weekly[Weekly$Year>2008,"Direction"],knn5Leq2008fullPredGt2008)
+knn15Leq2008fullPredGt2008 <- knn(as.matrix(Weekly[Weekly$Year<=2008,c("Volume",paste0("Lag",1:5))]),as.matrix(Weekly[Weekly$Year>2008,c("Volume",paste0("Lag",1:5))]),Weekly[Weekly$Year<=2008,"Direction"],k=15)
+table(Weekly[Weekly$Year>2008,"Direction"],knn15Leq2008fullPredGt2008)
+rocDatTmp <- NULL
+for ( kTmp in 0:200 ) {
+  knnTmp <- knn(as.matrix(Weekly[Weekly$Year<=2008,c("Volume",paste0("Lag",1:5))]),as.matrix(Weekly[Weekly$Year>2008,c("Volume",paste0("Lag",1:5))]),Weekly[Weekly$Year<=2008,"Direction"],k=2*kTmp+1)
+  tblTmp <- table(Weekly[Weekly$Year>2008,"Direction"],knnTmp)
+  rocDatTmp <- rbind(rocDatTmp,c(2*kTmp+1,1-tblTmp[1,1] / sum(tblTmp[1,]),tblTmp[2,2] / sum(tblTmp[2,])))
+}
+old.par <- par(mfrow=c(1,2))
+plot(rocDatTmp[,-1],xlab="1-Specificity",ylab="Sensitivity")
+abline(0,1,lty=2)
+plot(rocDatTmp[,1],1-rocDatTmp[,2],xlab="K",ylab="",ylim=c(0,1))
+points(rocDatTmp[,1],rocDatTmp[,3],col=2)
+legend("topleft",c("Specificity","Sensitivity"),col=1:2,pch=1,text.col=1:2)
+par(old.par)
+```
+
+
+*"(h) Which of these methods appears to provide the best results on this data?"*
+
+```{r}
+for ( iTry in 1:10 ) {
+  trainIdx <- sample(nrow(Weekly),nrow(Weekly),replace=TRUE)
+  wTrain <- Weekly[trainIdx,]
+  wTest <- Weekly[-trainIdx,]
+  glmTry <- glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=wTrain,family=binomial)
+  ldaTry <- lda(Direction~Lag2+Lag2+Lag3+Lag4+Lag5+Volume,data=wTrain)
+  qdaTry <- qda(Direction~Lag2+Lag2+Lag3+Lag4+Lag5+Volume,data=wTrain)
+  glmTestRes <- as.numeric(predict(glmTry,newdata=wTest,type="response")>0.5)
+  ldaTestRes <- predict(ldaTry,newdata=wTest)$class
+  qdaTestRes <- predict(qdaTry,newdata=wTest)$class
+  tblTstglm <- table(wTest[,"Direction"],glmTestRes)
+  tblTstLDA <- table(wTest[,"Direction"],ldaTestRes)
+  tblTstQDA <- table(wTest[,"Direction"],qdaTestRes)
+  cat(sum(diag(tblTstglm))/sum(tblTstglm),sum(diag(tblTstLDA))/sum(tblTstLDA),sum(diag(tblTstQDA))/sum(tblTstQDA),fill=TRUE)
+}
+```
+
+*"(i) Experiment with different combinations of predictors, including possible transformations and interactions, for each of the methods. Report the variables, method, and associated confusion matrix that appears to provide the best results on the held out data. Note that you should also experiment with values for K in the KNN classifier."*
+
+```{r}
+glmFullLeq2008 <- glm(Direction~Lag1*Lag2*Lag3*Lag4*Lag5*Volume,data=Weekly[Weekly$Year<=2008,],family=binomial)
+summary(glmFullLeq2008)
+boxplot(predict(glmFullLeq2008,type="response")~Weekly[Weekly$Year<=2008,"Direction"])
+abline(h=0.5,lty=2)
+abline(h=median(predict(glmFullLeq2008,type="response")),lty=3)
+tblTmp <- table(Weekly[Weekly$Year>2008,"Direction"],c("Down","Up")[1+(predict(glmFullLeq2008,newdata=Weekly[Weekly$Year>2008,],type="response")>median(predict(glmFullLeq2008,type="response")))])
+tblTmp
+tblTmp[2,2] / sum(tblTmp[2,])
+tblTmp[1,1] / sum(tblTmp[1,])
+assess.prediction(as.numeric(Weekly[Weekly$Year>2008,"Direction"])-1,as.numeric(predict(glmFullLeq2008,newdata=Weekly[Weekly$Year>2008,],type="response")>median(predict(glmFullLeq2008,type="response"))))
+```
