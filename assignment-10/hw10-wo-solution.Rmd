@@ -26,6 +26,13 @@ knitr::opts_chunk$set(echo = TRUE)
 library(MASS)
 # An extra boolean column has been added to mark location=3 true or false (0, 1)
 wifiData = matrix(scan("wifi_localization.txt"), ncol = 9, byrow = TRUE)
+
+# Plot to pdf, so we can zoom in SVG
+pdf("wifidata-pairs.pdf")
+pairs(wifiData)
+
+# Go back to default graphics device
+dev.off()
 ```
 
 # Problem 1 (10 points): logistic regression
@@ -52,8 +59,6 @@ summary(glmFit)
 ```
 
 ```{r 2}
-        predict(glmFit,type="response")
-
 boxplot(predict(glmFit,type="response")~wifiData[,9])
 quantile(predict(glmFit,type="response"))
 table(wifiData[,9],c("loc 3","loc not 3")[1+(predict(glmFit)>0.0)])
@@ -137,7 +142,7 @@ wifiDataScaled <- wifiData
 wifiDataScaled <- scale(wifiDataScaled)
 
 rocDatTmp <- NULL
-for ( kTmp in c(1, 5, 25) ) {
+for ( kTmp in c(1, 5, 25, 100, 300, 500, 750) ) {
   #knnTmp <- knn(train = as.matrix(wifiData[,1:7]), test = as.matrix(wifiData[,1:7]), cl = wifiData[,9], k=kTmp)
   knnTmp <- knn(train = as.matrix(wifiData[trainIds,]), test = as.matrix(wifiData[testIds,]), cl = as.matrix(wifiData[trainIds,9]), k = kTmp)
   tblTmp <- table(wifiData[testIds,9], knnTmp)
@@ -154,17 +159,45 @@ legend("topleft",c("Specificity","Sensitivity"),col=1:2,pch=1,text.col=1:2)
 par(old.par)
 ```
 
+Sensitivity: 0.9924528
+Specificity: 0.9918367
 
-Confusion matrix:
+<!-- Confusion matrix: -->
 
 ```{r wifiKNN__ConfusionMatrix}
-table(wifiData[,9], c(0,1)[1 + (predict(wifiKNN, newdata=as.data.frame(wifiData), type="response")$x > quantile(predict(wifiKNN, type="response")$x, 0.85))])
+# table(wifiData[,9], c(0,1)[1 + (predict(wifiKNN, newdata=as.data.frame(wifiData), type="response")$x > quantile(predict(wifiKNN, type="response")$x, 0.85))])
 ```
-
 
 # Problem 4 (30 points): compare test errors of logistic regression, LDA, QDA and KNN
 
 > Using resampling approach of your choice (e.g. cross-validation, bootstrap, etc.) obtain test error as well as sensitivity and specificity for each of these methods (logistic regression, LDA, QDA, KNN with $k=1,7,55,351$).  Present results in the form of boxplots, compare test error/sensitivity/specificity across these methods and discuss their relative performance.
+
+```{r compareGlm_Lda_Qda_and_KNN}
+
+# FIXME:
+
+library(knitr)
+
+for ( iTry in 1:10 ) {
+  trainIdx <- sample(nrow(Weekly),nrow(Weekly),replace=TRUE)
+  wTrain <- Weekly[trainIdx,]
+  wTest <- Weekly[-trainIdx,]
+  glmTry <- glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=wTrain,family=binomial)
+  ldaTry <- lda(Direction~Lag2+Lag2+Lag3+Lag4+Lag5+Volume,data=wTrain)
+  qdaTry <- qda(Direction~Lag2+Lag2+Lag3+Lag4+Lag5+Volume,data=wTrain)
+  glmTestRes <- as.numeric(predict(glmTry,newdata=wTest,type="response")>0.5)
+  ldaTestRes <- predict(ldaTry,newdata=wTest)$class
+  qdaTestRes <- predict(qdaTry,newdata=wTest)$class
+  tblTstglm <- table(wTest[,"Direction"],glmTestRes)
+  tblTstLDA <- table(wTest[,"Direction"],ldaTestRes)
+  tblTstQDA <- table(wTest[,"Direction"],qdaTestRes)
+  cat("GLM: ", sum(diag(tblTstglm))/sum(tblTstglm),
+      "LDA: ", sum(diag(tblTstLDA))/sum(tblTstLDA),
+      "QDA: ", sum(diag(tblTstQDA))/sum(tblTstQDA),
+      "\n"
+  )
+}
+```
 
 # Extra 5 points problem: naive Bayes classifier
 
