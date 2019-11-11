@@ -305,9 +305,6 @@ par(old.par)
 *"(h) Which of these methods appears to provide the best results on this data?"*
 
 ```{r}
-
-library(knitr)
-
 for ( iTry in 1:10 ) {
   trainIdx <- sample(nrow(Weekly),nrow(Weekly),replace=TRUE)
   wTrain <- Weekly[trainIdx,]
@@ -321,11 +318,7 @@ for ( iTry in 1:10 ) {
   tblTstglm <- table(wTest[,"Direction"],glmTestRes)
   tblTstLDA <- table(wTest[,"Direction"],ldaTestRes)
   tblTstQDA <- table(wTest[,"Direction"],qdaTestRes)
-  cat("GLM: ", sum(diag(tblTstglm))/sum(tblTstglm),
-      "LDA: ", sum(diag(tblTstLDA))/sum(tblTstLDA),
-      "QDA: ", sum(diag(tblTstQDA))/sum(tblTstQDA),
-      "\n"
-  )
+  cat(sum(diag(tblTstglm))/sum(tblTstglm),sum(diag(tblTstLDA))/sum(tblTstLDA),sum(diag(tblTstQDA))/sum(tblTstQDA),fill=TRUE)
 }
 ```
 

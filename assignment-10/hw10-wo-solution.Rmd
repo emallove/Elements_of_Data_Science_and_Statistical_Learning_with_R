@@ -11,6 +11,9 @@ output:
 library(MASS)
 library(class)
 library(ggplot2)
+
+# Incurs a compiler error
+# library("kknn")
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -174,30 +177,97 @@ Specificity: 0.9918367
 
 ```{r compareGlm_Lda_Qda_and_KNN}
 
-# FIXME:
+iTries = 10
+# myDf = data.frame(iTries, c("GLM", "LDA", "QDA"))
 
-library(knitr)
+myColnames = c("#", "GLM", "LDA", "QDA")
 
-for ( iTry in 1:10 ) {
-  trainIdx <- sample(nrow(Weekly),nrow(Weekly),replace=TRUE)
-  wTrain <- Weekly[trainIdx,]
-  wTest <- Weekly[-trainIdx,]
-  glmTry <- glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=wTrain,family=binomial)
-  ldaTry <- lda(Direction~Lag2+Lag2+Lag3+Lag4+Lag5+Volume,data=wTrain)
-  qdaTry <- qda(Direction~Lag2+Lag2+Lag3+Lag4+Lag5+Volume,data=wTrain)
-  glmTestRes <- as.numeric(predict(glmTry,newdata=wTest,type="response")>0.5)
-  ldaTestRes <- predict(ldaTry,newdata=wTest)$class
-  qdaTestRes <- predict(qdaTry,newdata=wTest)$class
-  tblTstglm <- table(wTest[,"Direction"],glmTestRes)
-  tblTstLDA <- table(wTest[,"Direction"],ldaTestRes)
-  tblTstQDA <- table(wTest[,"Direction"],qdaTestRes)
-  cat("GLM: ", sum(diag(tblTstglm))/sum(tblTstglm),
-      "LDA: ", sum(diag(tblTstLDA))/sum(tblTstLDA),
-      "QDA: ", sum(diag(tblTstQDA))/sum(tblTstQDA),
-      "\n"
-  )
+kVals = c(1,7,55,351)
+myMatrix = matrix(nrow=iTries, ncol = length(myColnames) + length(kVals))
+
+for ( iTry in 1:iTries ) {
+  
+  # Generate training and test samples
+  trainIdx <- sample(nrow(wifiData),nrow(wifiData),replace=TRUE)
+  wTrain <- wifiData[trainIdx,]
+  wTrainFrame <- as.data.frame(wTrain)
+  wTest <- wifiData[-trainIdx,]
+  
+  # Model
+  glmTry <- glm(V9~.,data=as.data.frame(wTrain),family=binomial)
+  ldaTry <- lda(V9~.,data=as.data.frame(wTrain))
+  colnames(wTrainFrame) = c("V1","V2","V3","V4","V5","V6","V7","V8","V9")
+  qdaTry <- qda(V9~.,data=wTrainFrame[,-8])
+  # FIXME: 
+  #   * use kVals = c(1,7,55,351), instead of hard-coding
+  #   * fix packages.install(kknn) compiler error
+  # kknnTry1 <- kknn(V9~.,data=wTrainFrame[,-8], k = 1)
+  # kknnTry7 <- kknn(V9~.,data=wTrainFrame[,-8], k = 7)
+  # kknnTry55 <- kknn(V9~.,data=wTrainFrame[,-8], k = 55)
+  # kknnTry351 <- kknn(V9~.,data=wTrainFrame[,-8], k = 351)
+  
+  # Predict
+  glmTestRes     <- as.numeric(predict(glmTry,newdata=as.data.frame(wTest),type="response")>0.5)
+  ldaTestRes     <- predict(ldaTry,newdata=as.data.frame(wTest))$class
+  qdaTestRes     <- predict(qdaTry,newdata=as.data.frame(wTest))$class
+  # kknnTestRes1   <- predict(kknnTry1,newdata=as.data.frame(wTest))$class
+  # kknnTestRes7   <- predict(kknnTry7,newdata=as.data.frame(wTest))$class
+  # kknnTestRes55  <- predict(kknnTry55,newdata=as.data.frame(wTest))$class
+  # kknnTestRes351 <- predict(kknnTry351,newdata=as.data.frame(wTest))$class
+ 
+  # Tabulate
+  tblTstglm     <- table(wTest[,9],glmTestRes)
+  tblTstLDA     <- table(wTest[,9],ldaTestRes)
+  tblTstQDA     <- table(wTest[,9],qdaTestRes)
+  # tblTstKknn1   <- table(wTest[,9],kknnTestRes1)
+  # tblTstKknn7   <- table(wTest[,9],kknnTestRes7)
+  # tblTstKknn55  <- table(wTest[,9],kknnTestRes55)
+  # tblTstKknn351 <- table(wTest[,9],kknnTestRes351)
+ 
+  # GLM, LDA, and QDA
+  myRow = c( iTry,
+             1 - (sum(diag(tblTstglm))     / sum(tblTstglm)),
+             1 - (sum(diag(tblTstLDA))     / sum(tblTstLDA)),
+             1 - (sum(diag(tblTstQDA))     / sum(tblTstQDA))
+             # 1 - (sum(diag(tblTstKknn1))   / sum(tblTstKknn1)),
+             # 1 - (sum(diag(tblTstKknn7))   / sum(tblTstKknn7)),
+             # 1 - (sum(diag(tblTstKknn55))  / sum(tblTstKknn55)),
+             # 1 - (sum(diag(tblTstKknn351)) / sum(tblTstKknn351)),
+  );
+ 
+  # KNN is special
+  for ( kTmp in kVals ) {
+    knnTestRes <- knn(train = as.matrix(wTrain), test = as.matrix(wTest), cl = as.matrix(wTrain[,9]), k = kTmp)
+    tblTstKnn <- table(wTest[,9], knnTestRes)
+    myRow <- append(myRow, c( 1 - (sum(diag(tblTstKnn)) / sum(tblTstKnn) )))
+  }
+
+  myMatrix[iTry,] = myRow
 }
+
+colnames(myMatrix) <- c(myColnames, sapply(kVals, function(x) { paste("KNN k=",x); } ))
+#rownames(myMatrix) <- c(1:iTries)
+#rownames(myMatrix) <- c(1,2,3,4,5,6,7,8,9,10)
+rownames(myMatrix) <- 1:iTries;
+
+# library(knitr)
+print("Test error rates:\n")
+
+boxplot(log(myMatrix[,-1]), las=2, col=rainbow(6, s=0.5), main="Test Error of Classifiers")
+
+myMatrix %>%
+  kable() %>%
+  kable_styling()
+
+# myDf <- as.data.frame(myMatrix)
+# colnames(myDf) <- colnames(c("#", "GLM", "LDA", "QDA"))
+# rownames(myDf) <- rownames(1:iTries)
+# kable(myDf)
 ```
+
+KNN outperforms them all - with $k=1$ being the optimal $k$ value.
+
+Interesting to note the degredation in KNN's test error rate as $k$ becomes too large.
 
 # Extra 5 points problem: naive Bayes classifier
 

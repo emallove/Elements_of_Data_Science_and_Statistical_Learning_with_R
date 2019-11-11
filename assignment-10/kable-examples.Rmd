@@ -1,0 +1,22 @@
+```{r kableExamples}
+
+library(knitr)
+library(kableExtra)
+dt <- mtcars[1:5, 1:6]
+
+# kable(dt)
+
+# mpg	cyl	disp	hp	drat	wt
+# Mazda RX4	21.0	6	160	110	3.90	2.620
+# Mazda RX4 Wag	21.0	6	160	110	3.90	2.875
+# Datsun 710	22.8	4	108	93	3.85	2.320
+# Hornet 4 Drive	21.4	6	258	110	3.08	3.215
+# Hornet Sportabout	18.7	8	360	175	3.15	3.440
+# Bootstrap theme
+# When used on a HTML table, kable_styling() will automatically apply twitter bootstrap theme to the table. Now it should looks the same as the original pandoc output (the one when you don’t specify format in kable()) but this time, you are controlling it.
+
+dt %>%
+  kable() %>%
+  kable_styling()
+
+```
