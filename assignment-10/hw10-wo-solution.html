@@ -609,36 +609,16 @@ for ( iTry in 1:iTries ) {
   colnames(wTrainFrame) = c(&quot;V1&quot;,&quot;V2&quot;,&quot;V3&quot;,&quot;V4&quot;,&quot;V5&quot;,&quot;V6&quot;,&quot;V7&quot;,&quot;V8&quot;,&quot;V9&quot;)
   colnames(wTest)       = c(&quot;V1&quot;,&quot;V2&quot;,&quot;V3&quot;,&quot;V4&quot;,&quot;V5&quot;,&quot;V6&quot;,&quot;V7&quot;,&quot;V8&quot;,&quot;V9&quot;)
   qdaTry &lt;- qda(V9~.,data=wTrainFrame[,-8])
-  # nbTry &lt;- naiveBayes(V9~.,data=as.data.frame(wTrain))
-  # nbTry &lt;- naiveBayes(V9~.,data=wTrainFrame[,-8])
- 
-  # FIXME: 
-  #   * use kVals = c(1,7,55,351), instead of hard-coding
-  #   * fix packages.install(kknn) compiler error
-  # kknnTry1 &lt;- kknn(V9~.,data=wTrainFrame[,-8], k = 1)
-  # kknnTry7 &lt;- kknn(V9~.,data=wTrainFrame[,-8], k = 7)
-  # kknnTry55 &lt;- kknn(V9~.,data=wTrainFrame[,-8], k = 55)
-  # kknnTry351 &lt;- kknn(V9~.,data=wTrainFrame[,-8], k = 351)
   
   # Predict
   glmTestRes     &lt;- as.numeric(predict(glmTry,newdata=as.data.frame(wTest),type=&quot;response&quot;)&gt;0.5)
   ldaTestRes     &lt;- predict(ldaTry,newdata=as.data.frame(wTest))$class
   qdaTestRes     &lt;- predict(qdaTry,newdata=as.data.frame(wTest))$class
-  # nbTestRes      &lt;- predict(nbTry,newdata=as.data.frame(wTest))$class
-  # kknnTestRes1   &lt;- predict(kknnTry1,newdata=as.data.frame(wTest))$class
-  # kknnTestRes7   &lt;- predict(kknnTry7,newdata=as.data.frame(wTest))$class
-  # kknnTestRes55  &lt;- predict(kknnTry55,newdata=as.data.frame(wTest))$class
-  # kknnTestRes351 &lt;- predict(kknnTry351,newdata=as.data.frame(wTest))$class
  
   # Tabulate
   tblTstglm     &lt;- table(wTest[,9],glmTestRes)
   tblTstLDA     &lt;- table(wTest[,9],ldaTestRes)
   tblTstQDA     &lt;- table(wTest[,9],qdaTestRes)
-  # tblTstNb      &lt;- table(wTest[,9],nbTestRes)
-  # tblTstKknn1   &lt;- table(wTest[,9],kknnTestRes1)
-  # tblTstKknn7   &lt;- table(wTest[,9],kknnTestRes7)
-  # tblTstKknn55  &lt;- table(wTest[,9],kknnTestRes55)
-  # tblTstKknn351 &lt;- table(wTest[,9],kknnTestRes351)
  
   # GLM, LDA, and QDA
   myRow = c( iTry,
