@@ -1,0 +1,50 @@
+---
+title: "naive-bayes-example"
+author: "Ethan Mallove"
+date: "11/11/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r nb}
+
+library(e1071)
+
+set.seed(11)
+x=c(rnorm(30),rnorm(30,mean=2))
+y=rep(c("A","B"),each=30)
+x1=c(x,rnorm(60,mean=2)) # add 60 more points with label B
+y1=c(y,rep("B",60))
+
+nb.fit=naiveBayes(Y~X,data=data.frame(Y=y1,X=x1))
+nb.fit
+# ...
+# A-priori probabilities:
+# Y
+# A B
+# 0.25 0.75
+# Conditional probabilities:
+# X
+# Y [,1] [,2]
+# A -0.3285999 0.7261498
+# B 1.9794251 0.9744249
+# ...
+
+predict(nb.fit,newdata=data.frame(X=xx))
+# [1] A A A A A ...
+predict(nb.fit,newdata=data.frame(X=xx),type="raw")
+# A B
+# [1,] 9.925013e-01 0.007498695
+# [2,] 9.916669e-01 0.008333079
+# [3,] 9.906629e-01 0.009337121
+plot(x1,ifelse(y1=="A",0,1), col=ifelse(y1=="A","lightblue","orange"), pch=19)
+
+# theoretical probability of B, TRUTH (dashed):
+
+points(xx,exp(-(xx-2)^2/2)*0.75/ (exp(-(xx-2)^2/2)*0.75+ exp(-xx^2/2)*0.25),type='l', col='red',lwd=2,lty=2)
+points(xx,predict(nb.fit, newdata=data.frame(X=xx), type="raw")[,2],col='red',type='l')
+
+```

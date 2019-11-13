@@ -11,6 +11,7 @@ output:
 library(MASS)
 library(class)
 library(ggplot2)
+library(e1071)
 
 # Incurs a compiler error
 # library("kknn")
@@ -72,9 +73,6 @@ tblTmp[2,2] / sum(tblTmp[2,])
 # specificity for predicting "loc not 3":
 tblTmp[1,1] / sum(tblTmp[1,])
 rocDatTmp <- NULL
-
-# scratch
-p <- predict(glmFit,type="response")
 
 for ( qTmp in quantile(predict(glmFit,type="response"),(0:10)/10) ) {
   tblTmp <- table(wifiData[,9], factor(c("loc 3", "loc not 3")[1+(predict(glmFit, type="response")>=qTmp)], c("loc 3", "loc not 3")))
@@ -145,7 +143,7 @@ wifiDataScaled <- wifiData
 wifiDataScaled <- scale(wifiDataScaled)
 
 rocDatTmp <- NULL
-for ( kTmp in c(1, 5, 25, 100, 300, 500, 750) ) {
+for ( kTmp in c(1, 5, 25) ) {
   #knnTmp <- knn(train = as.matrix(wifiData[,1:7]), test = as.matrix(wifiData[,1:7]), cl = wifiData[,9], k=kTmp)
   knnTmp <- knn(train = as.matrix(wifiData[trainIds,]), test = as.matrix(wifiData[testIds,]), cl = as.matrix(wifiData[trainIds,9]), k = kTmp)
   tblTmp <- table(wifiData[testIds,9], knnTmp)
@@ -197,7 +195,11 @@ for ( iTry in 1:iTries ) {
   glmTry <- glm(V9~.,data=as.data.frame(wTrain),family=binomial)
   ldaTry <- lda(V9~.,data=as.data.frame(wTrain))
   colnames(wTrainFrame) = c("V1","V2","V3","V4","V5","V6","V7","V8","V9")
+  colnames(wTest)       = c("V1","V2","V3","V4","V5","V6","V7","V8","V9")
   qdaTry <- qda(V9~.,data=wTrainFrame[,-8])
+  # nbTry <- naiveBayes(V9~.,data=as.data.frame(wTrain))
+  # nbTry <- naiveBayes(V9~.,data=wTrainFrame[,-8])
+ 
   # FIXME: 
   #   * use kVals = c(1,7,55,351), instead of hard-coding
   #   * fix packages.install(kknn) compiler error
@@ -210,6 +212,7 @@ for ( iTry in 1:iTries ) {
   glmTestRes     <- as.numeric(predict(glmTry,newdata=as.data.frame(wTest),type="response")>0.5)
   ldaTestRes     <- predict(ldaTry,newdata=as.data.frame(wTest))$class
   qdaTestRes     <- predict(qdaTry,newdata=as.data.frame(wTest))$class
+  # nbTestRes      <- predict(nbTry,newdata=as.data.frame(wTest))$class
   # kknnTestRes1   <- predict(kknnTry1,newdata=as.data.frame(wTest))$class
   # kknnTestRes7   <- predict(kknnTry7,newdata=as.data.frame(wTest))$class
   # kknnTestRes55  <- predict(kknnTry55,newdata=as.data.frame(wTest))$class
@@ -219,6 +222,7 @@ for ( iTry in 1:iTries ) {
   tblTstglm     <- table(wTest[,9],glmTestRes)
   tblTstLDA     <- table(wTest[,9],ldaTestRes)
   tblTstQDA     <- table(wTest[,9],qdaTestRes)
+  # tblTstNb      <- table(wTest[,9],nbTestRes)
   # tblTstKknn1   <- table(wTest[,9],kknnTestRes1)
   # tblTstKknn7   <- table(wTest[,9],kknnTestRes7)
   # tblTstKknn55  <- table(wTest[,9],kknnTestRes55)
@@ -229,6 +233,7 @@ for ( iTry in 1:iTries ) {
              1 - (sum(diag(tblTstglm))     / sum(tblTstglm)),
              1 - (sum(diag(tblTstLDA))     / sum(tblTstLDA)),
              1 - (sum(diag(tblTstQDA))     / sum(tblTstQDA))
+             # 1 - (sum(diag(tblTstNb))      / sum(tblTstNb))
              # 1 - (sum(diag(tblTstKknn1))   / sum(tblTstKknn1)),
              # 1 - (sum(diag(tblTstKknn7))   / sum(tblTstKknn7)),
              # 1 - (sum(diag(tblTstKknn55))  / sum(tblTstKknn55)),
@@ -255,9 +260,12 @@ print("Test error rates:\n")
 
 boxplot(log(myMatrix[,-1]), las=2, col=rainbow(6, s=0.5), main="Test Error of Classifiers")
 
-myMatrix %>%
-  kable() %>%
-  kable_styling()
+myMatrix
+
+# Throws knit error
+# %>%
+#   kable() %>%
+#   kable_styling()
 
 # myDf <- as.data.frame(myMatrix)
 # colnames(myDf) <- colnames(c("#", "GLM", "LDA", "QDA"))
@@ -273,6 +281,127 @@ Interesting to note the degredation in KNN's test error rate as $k$ becomes too 
 
 > Fit naive Bayes classifier (see lecture slides for examples of using `naiveBayes` function from package `e1071`) to the WiFi localization dataset with binary (location=3 or not) outcome and assess its performance on test data by resampling along with logistic regression, LDA, QDA and KNN in the Problem 4 above.
 
+
+```{r naiveBayes}
+
+# FIXME
+
+# nb.fit=naiveBayes(Y~X,data=data.frame(Y=y1,X=x1))
+# colnames(wTrainFrame) = c("V1","V2","V3","V4","V5","V6","V7","V8","V9")
+# nb.fit=naiveBayes(V9~.,data=wTrainFrame[,-8])
+
+# nbTestRes <- predict(nb.fit, newdata=wTest[,9])
+# tblTstNb <- table(wTest[,9], nbTestRes)
+
+# predict(nb.fit,newdata=wTest[,9],type="raw")
+# 
+# plot ( x1, ifelse ( y1 == "A", 0, 1 ), col = ifelse ( y1 ==  "A",  "lightblue",  "orange" ), pch = 19 ) 
+# # theoretical probability of B, TRUTH ( dashed ) : 
+# points ( xx, exp (-((xx - 2)^2) / 2 ) * 0.75 / ( exp(-((xx - 2)^2) / 2) * 0.75 + exp ( (-xx^2) / 2 ) * 0.25 ), type =  'l', col = 'red', lwd = 2, lty = 2 ) 
+# 
+# # predicted prob.
+# points ( xx, predict ( nb.fit, newdata = data.frame ( X = xx ), type = "raw" )[,2], col = 'red', type =  'l')
+
+```
+
 # Extra 10 points problem: interaction terms in logistic regression
 
 > Add pairwise interaction terms to the logistic regression model fit in the Problem 1 above and evaluate impact of their addition on training **and** test error.  You can add all pairwise interaction terms or a subset of them, in which case the rationale behind selecting such a subset has to be described in your solution.
+
+```{r interactionTerms}
+# glmFit <- glm(V9~.,data=as.data.frame(wifiData),family=binomial)
+
+# Add all pair-wise interaction terms
+glmFit <- glm(V9 ~ V1 + V1:V2 + V1:V3 + V1:V4 + V1:V5 + V1:V7 + V2:V5 + V2:V7 + V3:V4 + V3:V5 + V3:V7 + V5:V6,data=as.data.frame(wifiData),family=binomial)
+summary(glmFit)
+
+boxplot(predict(glmFit,type="response")~wifiData[,9])
+quantile(predict(glmFit,type="response"))
+table(wifiData[,9],c("loc 3","loc not 3")[1+(predict(glmFit)>0.0)])
+tblTmp <- table(wifiData[,9],c("loc 3","loc not 3")[1+(predict(glmFit,type="response")>0.5)])
+# tblTmp
+# sensitivity for predicting "loc 3":
+tblTmp[2,2] / sum(tblTmp[2,])
+# specificity for predicting "loc not 3":
+tblTmp[1,1] / sum(tblTmp[1,])
+rocDatTmp <- NULL
+
+for ( qTmp in quantile(predict(glmFit,type="response"),(0:10)/10) ) {
+  tblTmp <- table(wifiData[,9], factor(c("loc 3", "loc not 3")[1+(predict(glmFit, type="response")>=qTmp)], c("loc 3", "loc not 3")))
+  cat(qTmp,tblTmp[2,2] / sum(tblTmp[2,]),tblTmp[1,1] / sum(tblTmp[1,]),fill=TRUE)
+  rocDatTmp <- rbind(rocDatTmp,c(1-tblTmp[1,1] / sum(tblTmp[1,]),tblTmp[2,2] / sum(tblTmp[2,])))
+}
+plot(rocDatTmp,ylab="Sensitivity",xlab="1-Specificity")
+abline(0,1,lty=2)
+```
+
+In the above model, I've added the most significant predictor combinations.  I gathered pairs of terms by first inspecting performance of *all* term pairs ($(V1:V7)^2$).  
+
+```
+Show in New WindowClear OutputExpand/Collapse Output
+glm.fit: fitted probabilities numerically 0 or 1 occurred
+Call:
+glm(formula = V9 ~ (V1 + V2 + V3 + V4 + V5 + V6 + V7)^2, family = binomial, 
+    data = as.data.frame(wifiData))
+
+Deviance Residuals: 
+    Min       1Q   Median       3Q      Max  
+-2.9222  -0.0010   0.0000   0.0001   4.0874  
+
+Coefficients:
+              Estimate Std. Error z value Pr(>|z|)    
+(Intercept) -4.380e+02  2.292e+02  -1.911 0.056002 .  
+V1          -9.549e+00  2.857e+00  -3.342 0.000832 ***
+V2           1.234e+00  2.560e+00   0.482 0.629874    
+V3          -3.472e+00  2.629e+00  -1.321 0.186661    
+V4          -2.136e+00  2.133e+00  -1.002 0.316583    
+V5           7.870e-01  1.494e+00   0.527 0.598459    
+V6          -1.571e+00  2.151e+00  -0.730 0.465141    
+V7          -1.109e+00  1.869e+00  -0.593 0.552998    
+V1:V2        7.017e-02  2.813e-02   2.494 0.012614 *  
+V1:V3       -6.972e-02  2.580e-02  -2.702 0.006893 ** 
+V1:V4       -1.462e-01  1.915e-02  -7.632 2.31e-14 ***
+V1:V5        6.670e-02  1.701e-02   3.922 8.80e-05 ***
+V1:V6       -2.136e-02  1.843e-02  -1.159 0.246461    
+V1:V7       -5.817e-02  2.413e-02  -2.411 0.015904 *  
+V2:V3        9.890e-03  2.312e-02   0.428 0.668849    
+V2:V4        2.221e-02  1.907e-02   1.164 0.244304    
+V2:V5        2.247e-02  1.317e-02   1.706 0.088034 .  
+V2:V6       -2.372e-02  2.335e-02  -1.016 0.309677    
+V2:V7       -4.348e-02  2.093e-02  -2.077 0.037800 *  
+V3:V4        4.100e-02  1.852e-02   2.214 0.026797 *  
+V3:V5       -8.190e-02  1.732e-02  -4.730 2.25e-06 ***
+V3:V6       -3.574e-02  2.820e-02  -1.268 0.204973    
+V3:V7        6.401e-02  2.398e-02   2.669 0.007605 ** 
+V4:V5       -1.048e-02  1.258e-02  -0.833 0.404761    
+V4:V6        9.937e-03  1.586e-02   0.627 0.530818    
+V4:V7        2.059e-02  1.947e-02   1.058 0.290211    
+V5:V6        2.687e-02  1.421e-02   1.891 0.058659 .  
+V5:V7       -1.383e-02  1.395e-02  -0.991 0.321446    
+V6:V7        9.536e-03  1.667e-02   0.572 0.567338    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 2249.34  on 1999  degrees of freedom
+Residual deviance:  143.69  on 1971  degrees of freedom
+AIC: 201.69
+
+Number of Fisher Scoring iterations: 12
+
+          0%          25%          50%          75%         100% 
+2.220446e-16 1.926224e-12 4.868185e-07 5.843425e-01 9.999999e-01 
+   
+    loc 3 loc not 3
+  0  1486        14
+  1    10       490
+   
+    loc 3 loc not 3
+  0  1486        14
+  1    10       490
+[1] 0.98
+[1] 0.9906667
+````
+
+In the above output, we use the following formula (`V1 + V1:V2 + V1:V3 + V1:V4 + V1:V5 + V1:V7 + V2:V5 + V2:V7 + V3:V4 + V3:V5 + V3:V7 + V5:V6`) since these pairs are marked significant (`***`, `**`, `*`, or `,`).  This gives our GLM classifier a major boost in predictive power (sensitivity and specificity increase dramatically).
