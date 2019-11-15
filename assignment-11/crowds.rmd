@@ -1,0 +1,392 @@
+---
+title: "Wisdom of the crowds, by example"
+author: "Andrey Sivachenko"
+output: 
+   html_document:
+      toc: true
+      toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this note we are going to examine the works of the "wisdom of the crowds" concept. We start with building a relatively simple simulated dataset, then see how a few equally accurate (albeit imperfect) but notably different models can be used to describe the data and how they can be combined, and finally we will discuss the lessons learned.
+
+### Statistical Process
+
+For the purposes of our illustration we are going to consider the following simple statistical process with two independent variables, $X1$ and $X2$, and a a two-level outcome variable Y (0/1 , whatever that means - democrat/republican, genuine/fake, healthy/disease, etc). We assume that the independent variables $X1$, $X2$ are both uniformly distributed in the same range $[0,1]$ and that the probability of the outcome to be 1 ("success") is fixed in each of the four quadrants of the (X1,X2) space as shown below:
+
+
+  X1/X2       | x1 < 0.5 |	x1 > 0.5 |	Marginal:
+--------------|----------|-----------|------------
+**x2 > 0.5**  |   0.6    |	0.6	     |   0.6
+**x2 < 0.5**  |	  0.6	   |  0.2      |	 0.4
+**Marginal:** |	  0.6	   |  0.4      |	
+
+Note that in principle the assumptions of uniformity of X1, X2 distributions and of the probabilities of outcome 1 in each quadrant are completely decoupled. We assume the uniformity for simplicity and, importantly, for completeness of the problem so that we are able to assign the marginal probabilities shown in the table above and to sample examples of the data to play with. Indeed, if the probabilities of outcome 1 are $P(Y=1|x_1 < 0.5, x_2 < 0.5)=0.6$ and $P(Y=1|x_1 > 0.5, x_2 < 0.5)=0.2$ (the second row of the above table), then 
+
+$$ 
+\begin{aligned}
+P(Y=1| & x_2 < 0.5) = \\ 
+       &  P(Y=1|x_1 < 0.5, x_2 < 0.5) P(x_1<0.5)+P(Y=1|x_1 > 0.5, x_2 < 0.5) P(x_1>0.5)= \\
+       &  0.6 P(x_1<0.5) + 0.2 P(x_1>0.5)
+\end{aligned}
+$$
+
+In the case when the distribution of $X1$ is uniform (or technically any symmetric distribution centered at 0.5) we have $P(x_1<0.5)=P(x_1>0.5)=1/2$, so that the marginal probability becomes $P(Y=1| x_2 < 0.5) = 0.6 \cdot 0.5  + 0.2 \cdot 0.5 = 0.4$. However, if, for instance, the distribution of $X1$ were such that all the values are always above 0.5 (i.e. the probability of observing values $x_1<0.5$ is zero), then the marginal probability $P(Y=1|x_2<0.5)$ would be equal to 0.2.  
+
+Just to give a better sense of what's going on, imagine simulating data according to this generative model: let's say we have 1000 observations uniformly distributed between 0 and 1 in both X1 and X2 directions. The expected number of observations in each quadrant is then equal to 250 and taking into account the probabilities of outcome 1 in each of the quadrants, the expected counts of "outcome 1"/"total" observations will be:
+
+   X1/X2      | x1 < 0.5  |	x1 > 0.5 | Marginal:
+--------------|-----------|----------|----------
+**x2> 0.5**	  |   150/250 |	150/250  | 300/500	     
+**x2 < 0.5**  |	  150/250 |  50/250  | 200/500    
+**Marginal:** |	  300/500	| 200/500  |       	
+
+In the following text we are going to refer to the four quadrants as Q1, Q2, Q3, Q4, starting from the *top-left* and going *clockwise*.
+
+### Simulated Data
+
+With the underlying statistical process fully defined above, everything we need could be done analytically of course, but let us develop some code instead, for the purposes of illustration and of gaining some hands-on intuition. First we will define a few functions (below). The first one is a very simple helper that we use to avoid copy-pasting redundant code: we want the functions we are going to delop later to be able to take either the (vectors of) observations $\tt x1$, $\tt x2$, as two separate arguments, or a single dataframe or matrix with two columns representing observed values of variables X1 and X2, respectively. Probably an overkill and overdesign for a simple task we are working on here, in all the fairness. 
+
+Next, we are going to define a function that takes observed values of variables $X1$ and $X2$ and returns a vector of probabilities of outcome 1 for each of those observations, according to the definition given in the previous section. Note that we are developing an example where we know exactly what *really* happens and we want to sample "observed" datasets according to those known underlying distributions. Having the code structured and packaged the way it is might help you play with this example further, develop your own modifications, and investigate other distributions should you become interested.
+
+The last function takes the vector of probabilities of the "success" outcome (1), and simulates the vector of actual outcomes according to those probabilities. Indeed, if we postulated that the *probability* of outcome 1 is 0.6 in quadrant Q1, then when we simulate the data we have to use that probability to assign 1 to any given observation that falls into Q1 - in that case *on average* 60% of observations in Q1 will have outcome label 1 (if instead we just assigned 1 to every observation in Q1, then the (observed) avearge probability of that outcome in Q1 would be 100% in the simulated data, which is very different from the generative model we postulated!). Note that outcomes are assigned to each observation $(x_1,x_2)$ individually, based on the corresponding calculated probability. Thus, if you decide to come up with different/more complex generative model, you only need to supply the appropriate function that returns the probability of outcome 1 for every simulated observation $(x_1,x_2)$ and use it instead of $\tt out.prob()$ in the call to $\tt simulate.outcomes()$.
+
+
+```{r data.funs}
+
+# Whether the args are two vectors or a single dataframe/matrix (in which case the second arg must 
+# be NULL), the output is always a dataframe, with column names X1, X2, that's all this helper does 
+# (plus a few sanity checks).
+pack.vars = function(x1, x2=NULL) {
+  if ( is.null(x2) ) {
+    if ( is(x1,"data.frame") || is(x1,"matrix") ) {
+      if ( ncol(x1) !=2 ) stop("When dataframe or matrix is passed it must have 2 columns")
+      if ( is(x1,"matrix") ) x1 = as.data.frame(x1)
+      colnames(x1)=c("X1","X2")
+    } else {
+      stop("when observations are passed as a single argument x1, it must be a dataframe or a matrix")
+    }
+  } else {
+    if ( ! is.numeric(x1) || ! is.numeric(x2) ) stop("When both x1 and x2 are specified, they should be numeric vectors")
+    x1 = data.frame(X1=x1,X2=x2)
+  }
+  return(x1)
+}
+
+# This function represents the probability distribution of the outcomes that we want to use here. 
+# For each observation (x1, x2) the returned probability of "success" is defined by the rules 
+# described in the text.
+out.prob = function(x1,x2) {
+  # quadrants are enumerated as 1...4 clockwise, starting from top-left; here we build vectors
+  # of boolean flags, flags in each vector qK are set to T only when the corresponding observation 
+  # is in quadrant K:
+  q1 = (x1 <0.5 & x2 > 0.5)
+  q2 = (x1 >0.5 & x2 > 0.5)
+  q3 = (x1 >0.5 & x2 < 0.5)
+  q4 = (x1 <0.5 & x2 < 0.5)
+
+  # now on to probabilities: with our generative model, we simply have P(Y=1)=0.6 in quadrants 
+  # Q1, Q2, and Q4, and P(Y=1)=0.2 in Q3.
+  p.red = ifelse( q1 | q2 | q4, 0.6, 0.2 )
+
+  return(p.red)
+}
+
+
+# given observation(s) of two independent variables x1, x2 this function simulates the outcome 
+# label for each observation, according to the specified probability distribution. Parameters:
+# x1, x2: vectors of observatons of the independent variables; can be also passed as a 
+#         two-column matrix or dataframe with columns corresponding to variables X1 and X2, and 
+#         the argument x2 in this case must be NULL
+# prob.distr: a vector of probabilities of the "success" outcome for each observation (x1, x2), 
+#             or a*function* which should be able to take obervations of independent variables 
+#             x1 and x2 and return a vector of corresponding probabilities of the "success" 
+#             outcome (see below)
+# outcomes: a vector that lists two possible outcomes, "failure" and "succsess", in that order 
+#           (defaults for failure and success labels are 0 and 1, respectively); if some data 
+#           point (x1,x2) has probability of "success" P (as provided by prob.distr), then 
+#           simulate.outcomes() will assign label outcomes[2] to that observation with probability 
+#           P (and, correspondingly, it will assign label outcomes[1] with probability 1-P)
+
+simulate.outcomes = function(x1,x2=NULL, prob.distr, outcomes=c(0,1)) {
+  obs = pack.vars(x1,x2)
+  if ( length(outcomes) != 2 ) stop("This implementation works only with binary outcomes, the argument must be a vector of length 2")
+  if ( is.function(prob.distr) ) {
+    probs = prob.distr(obs$X1,obs$X2)
+  } else {
+    if ( ! is.numeric(prob.distr) ) stop("prob.distr must be a function or a numeric vector")
+    if ( length(prob.distr) != nrow(obs) ) {
+      if ( length(prob.distr) == 1 ) {
+        # OK, certainly a boring model if *any* observation (x1,x2) has exactly the same 
+        # probability of outcome 1, but fine, let's recycle:
+        probs = rep(prob.distr,nrow(obs))
+      } else { # don't know what to do. A probability of outcome 1 must be provided for 
+               # each individual observation:
+        stop("prob.distr length differs from the number of observations")
+      }
+    }
+  }
+  # sample outcome for each of the (x1, x2) datapoints using the proper outcome probability 
+  # distribution associated with that point:
+  outcomes = sapply(probs,function(x) { sample( outcomes, size=1, prob = c(1-x,x) ) } ) 
+  return(outcomes)
+}
+```
+
+Now with the prerequisite work done, we are in position to simulate a dataset according to the distributions defined in the previous sections. If the underlying truth were as defined earlier, and we went out into the filed and obtained some measured data, we would observe something like this:
+
+```{r simulate}
+N=10000 # number of observations we want to simulate
+set.seed(123)
+obs = data.frame(X1=runif(N),X2=runif(N)) # observations of X1 and X2, drawn from uniform
+# simulate outcomes according to the known underlying rule provided through function out.prob()
+obs$Y=simulate.outcomes(obs,prob.distr = out.prob) 
+plot(obs$X1,obs$X2,pch=19,cex=0.3,col=ifelse(obs$Y==1,"red","blue"), 
+     xlab=expression(X[1]), ylab=expression(X[2]),cex.lab=1.3)
+```
+
+The dataset probably does not look too exciting, but hold your judgement. It is simple and it is built with the explicit purpose of providing a manageable and straightforward illustration as you will see soon.
+
+Note that the 0/1 outcomes are always mixed, everywhere, that's the truth we have postulated! So that we cannot hope, of course, to learn to make perfect predictions. Our best hope, instead, is to reproduce the underlying truth (can't do better than that, right?). In our case the truth is that in each of the four quadrants the probability for the outcome to be 1 is fixed, there is no additional, finer structure and there is certainly no hope to predict with 100% accuracy whether any given point in a certain quadrant is going to be red or blue. However, since quadrants Q1, Q2, and Q4 have more red than blue (as clearly seen in the figure above), we should certainly predict 1 (red) in those qudrants (and our error rate will be 40% in each of them since in reality only 60% of the points are red there). Similarly, we have to predict blue (0) in quadrant Q3, which will result in error rate of 20% (in that quadrant), since 20% of observations there are in fact red. If we make such predictions, our overall (expected) error rate on the dataset should be $0.4\cdot 3/4+0.2\cdot 1/4=0.35$ since we assume that X1, X2 have uniform distributions (just symmetric around 0.5 would be enough, in fact), so the (expected) fraction of observations in each quadrant is 1/4. The error rate of 0.35 means accuracy 1-0.35=0.65, that's the theoretical limit of prediction accuracy on a dataset built according to our postulated generative model ("the underlying truth").
+
+### Predictive Models
+
+Now imagine that in an attempt to model our data we managed to find the following four different, simple models: 
+
+1. Predict "red" (i.e. outcome 1) when $X1 < 0.5$ 
+2. Predict "red" when $X2 > 0.5$. 
+3. Predict "red" when the observation lies above the diagonal $x_1=x_2$, in other words "red" when $x_2-x_1>0$ and "blue" otherwise
+4. Predict "red" when $(x_1-0.5)\cdot (x_2-0.5) > 0$. Note that this condition is equivalent to: "red" when *either* $x_1>0.5$ and $x_2>0.5$ *or* $x_1<0.5$ and $x_2<0.5$.
+
+For now, let us not worry about how exactly we came up with those models, maybe we tried some variable selection, maybe we had some useful but incomplete insight into our dataset (in a realistic complex multidimesional dataset any insight you might get *will* be incomplete, most likely!), and so on. We will demonstrate later that these examples are very real and can be in fact obtained using our standard toolkit. Just assume for now that we went through many model building attempts and ended up with four candidate models shown above. 
+
+Note that technically, the above definitions contain a little bit of cheating: we are using the knowledge of the underlying truth (the fact that quadrant boundaries are located exactly at 0.5 in either direction). However, this is not important for us right now. The claim we are making here is that if, for instance, we decided to select variable $X1$ and tried to fit a model Y~X1 on the observed data, we *would* necessarily get some boundary $x_1 < a$ (what else, we have only one independent variable in the model!!), and if we had all the data in the world for training, then that boundary would of course become $a=0.5$. So this value is a limit, the correct, *best* model for the true underlying distribution that we could possibly get in the space of variables $(Y,X1)$. When training on a finite size dataset, the dicovered boundary would be slightly different due to random sampling fluctuations (so in fact this would be a little bit of overfitting to the specific realization of data we have in hand), but we are not studying effects of overfitting here. This is why we sampled 10,000 data points, so that any sampling fluctuations would be negligible anyway. You can also take the  models shown above for what they are: the theoretically best possible models for the underlying distribution built under *specific constraints* of using only X1, only X2, a linear boundary in the space (X1,X2), or a product of (centered) variables X1 and X2, respectively. We could do everything that is shown below analytically just using these theoretical models, while the finite size dataset we have simulated is an example we are going to use for *illustraing* how these models perform - we will *truly* need that dataset only later, when we are going to demonstrate that we could potentially end up with the above models (or close enough) in a real life situation if we really tried to just model the available data without knowing the underlying truth.
+
+We are not going to prove the optimality of the above models (it's not too hard though), but we invite you to think about it in qualitative terms: what happens for instance, if we decide to use only variable X1 in a model (i.e. Y~X1)? Having only this one variable to work with, the only thing any model could do is to split the range of X1 into regions, predicting 1 in some regions and 0 in the others. In the full variable space $(X1,X2)$ (see Figure above), any split on variable X1 is a vertical line. But there is only one true inflection point in the data along the X1 direction: the left part of the dataset ($x_1 < 0.5$) has 60% of outcomes 1 (both Q1 and Q4 contain 60% of red dots), and in the right part ($x_1>0.5$) the chance of outcome 1 is 40% (60% in Q2 and 20% in Q3, giving 40% on average). Exactly the same calculation applies if we allow linear boundary in (X1,X2) space (model 3): Q1 and above-diagonal halves of Q2 and Q4 all contain 60% of red points, while below the X1=X2 line we have Q4 (20% of red) and below-diagonal halves of Q2 and Q4 (60% red each), so on average we again have 40% chance of outcome 1 below the X1=X2 line (see also the code chunk and figures below). 
+
+While these are mathematical facts, let us now implement these models in code and observe that things indeed work as they should:
+
+```{r models}
+# implement models according to the above definitions. Since we explicitly defined above the 
+# predicted outcomes for each of the models, all we need to do is to literally return those 
+# outcome according to the prescription, no need for actual "fitted model objects" 
+# (lda, glm, or whatever those might be)
+model1 = function(x1,x2=NULL) {
+  obs = pack.vars(x1,x2)
+  # predict outcome red whenever x1 < 0.5, ignore x2
+  ifelse( obs$X1 < 0.5, 1, 0)
+}
+
+model2 = function(x1,x2=NULL) {
+  obs = pack.vars(x1,x2)
+  # predict outcome red whenever x2 > 0.5, ignore x1
+  ifelse( obs$X2 > 0.5, 1, 0)
+}
+
+model3 = function(x1,x2=NULL) {
+  obs = pack.vars(x1,x2)
+  # predict outcome red whenever x2 > 0.5, ignore x1
+  ifelse( obs$X2 - obs$X1 > 0 , 1, 0)
+}
+
+model4 = function(x1,x2=NULL) {
+  obs = pack.vars(x1,x2)
+  # predict outcome red whenever x2 > 0.5, ignore x1
+  ifelse( ( obs$X2 - 0.5 ) * ( obs$X1 - 0.5 ) > 0 , 1, 0)
+}
+
+```
+
+The four models, while quite different, all correctly predict ~60% of outcomes on average. We explained it above for models 1 and 3 and leave it as an exercise for the reader to convince themselves that the (theoretical) accuracies of models 2 and 4 are also the same. Below we illustrate these models and their accuracies with code and figures. First we we build a reasonably dense grid of points in the domain of (X1, X2) variables and make each model predict on each grid point, so that we can clearly see the decision boundaries; next we take our simulated dataset and calculate numerically the percentages of the correct predictions (they are not going to be precisely 60% because it is a finite size dataset, but as you can see sampling fluctuations are small enough, so our large dataset provides a decent representation of the underlying truth).
+
+```{r accuracy, fig.asp=1}
+# build a dense grid of (x1,x2) points:
+x.grid = expand.grid(X1=seq(0,1,length.out = 50),X2=seq(0,1,length.out = 50))
+# plot predictions of each model on each point on the grid:
+oldpar = par(mfrow=c(2,2))
+plot(x.grid,col=ifelse(model1(x.grid)==1,"red","blue"),main="Model 1",pch=19,cex=0.5)
+abline(h=0.5,v=0.5)
+plot(x.grid,col=ifelse(model2(x.grid)==1,"red","blue"),main="Model 2",pch=19,cex=0.5)
+abline(h=0.5,v=0.5)
+plot(x.grid,col=ifelse(model3(x.grid)==1,"red","blue"),main="Model 3",pch=19,cex=0.5)
+abline(h=0.5,v=0.5)
+plot(x.grid,col=ifelse(model4(x.grid)==1,"red","blue"),main="Model 4",pch=19,cex=0.5)
+abline(h=0.5,v=0.5)
+par(oldpar)
+sum(obs$Y == model1(obs[,1:2]))/N
+sum(obs$Y == model2(obs[,1:2]))/N
+sum(obs$Y == model3(obs[,1:2]))/N
+sum(obs$Y == model4(obs[,1:2]))/N
+```
+
+
+### Combining models
+
+By now we got four models with exactly the same theoretical accuracies. This is why we might have chosen these models in real life: so we tried few variable selection/modeling approaches, and we ended up with four models that are equivalent, accuracy-wise (note that in real life the accuracies might be slightly different because of the sampling fluctuations, and if we don't know the underlying truth then we cannot say anything about the true, theoretical accuracy of the contenders!). Is this the end of the game? Should we just select one of them, whichever we like more (or whichever has a superficially better accuracy - possibly just a result of particular realizatrion of the data) and call it quits?
+
+Note that the models are quite different: despite the fact that their *average* performance is the same, they make different mistakes (we have the benefit of knowing the underlying truth in our simulated data, so we know exactly where each model is wrong!). Model 1 incorrectly calls blue (outcome 0) in quadrant Q2, model 2 incorrectly calls blue in Q4, model 3 incorreclty calls blue in the below-diagonal halves of Q2 and Q4 and, finally, model 4 incorrectly calls blue in Q1. What happens if we take few models, ask each of them to make its own prediction on any given data point and then take the majority vote? 
+
+Shown below is the code that does just that: on each observation $(x_1,x_2)$ it polls a collection (an "ensemble") of models and chooses the most frequent prediction: 
+
+```{r voting}
+# an ensemble model that takes vector of model functions and makes a prediction
+# at any given point x1, x2 based on the majority vote among those underlying models:
+model.ensemble = function(x1,x2=NULL, models) {
+  # convert observations x1, x2 into the "canonic form" we use here (a single dataframe):
+  obs = pack.vars(x1,x2) 
+  # "predictions" will be a matrix, with column k holding outcome labels at each point 
+  # (x1,x2) predicted by model models[k]:
+  predictions = sapply(models, function(m) { m(obs) } ) 
+
+  # for each row of the prediction matrix (i.e. across predictions made by different 
+  # models for the same data point (x1,x2)), we count the occurences of each predicted 
+  # label and chose one with the largest count (majority vote!):
+  maj.predictions = apply(predictions,1,function(x) {
+    tbl = table(x)
+    winner = which.max(tbl)
+    return( names(tbl)[winner] )
+  })
+  return(maj.predictions)
+}
+```
+
+Let us see how this is going to work with the models that we studied earlier:
+
+```{r ensemble.results, fig.asp=0.6}
+sum(obs$Y==model.ensemble(obs[,1:2], models=c(model1, model2, model4)))/N
+
+sum(obs$Y==model.ensemble(obs[,1:2], models=c(model1, model2, model3)))/N
+
+oldpar=par(mfrow=c(1,2))
+plot(x.grid,col=ifelse(model.ensemble(x.grid,models=c(model1, model2, model4))==1,"red","blue"),
+     main="Ensemble: 1, 2, and 4",pch=19,cex=0.5)
+plot(x.grid,col=ifelse(model.ensemble(x.grid,models=c(model1, model2, model3))==1,"red","blue"),
+     main="Ensemble: 1, 2, and 3",pch=19,cex=0.5)
+par(oldpar)
+```
+
+This is quite impressive! Note that the combined model that takes the majority vote among our simple models 1, 2, and 4 results in ~64% accuracy (on a finite size dataset - remember that the best theoretically achievable accuracy on an infinite dataset generated according to the rules we postulated is 65%, as it was discussed earlier!), and the decision boundary is precisely what it should be in the best theoretically possible model (left panel in the above plot). Interestingly enough, combining models 1, 2, and 3 did not result in any improvement, and in fact the predictions are exactly the same as those made by the model 3 alone (the accuracy on our finite size dataset is 0.595 as shown above, which is same as what we got for model 3 earlier, and also compare the right panel in the above plot to the decision boundary of the model 3 in the previous plot). Please examine the previous plot (decision boundaries of individual models) carefully, note what call each of the models makes in different regions of the (X1, X2) space, and make sure you understand why polling models 1, 2, 4 and 1, 2, 3 results in the decision boundaries as shown in the left and right panels of the last plot, respectively.
+
+
+### The models that we "guessed" are quite real
+
+Before moving on to the conclusions, let us quicky convince ourselves (and it's a good exercise anyway) that we could indeed get something very close (up to sampling noise in a finite size dataset) to the models we presented earlier as possible ad-hoc solutions. First let us throw the simulated data at LDA in their entirety and examine the accuracy and decision boundary of the resulting fit. Note that for simplicity we are looking at the *training* accuracy - it is of little consequence here as the dataset is very large, while the model is very simple, so any serious overfitting is not going to occur; we could of course generate a separate test dataset from the same generative model or in real life we would have to do our due diligence and run cross-validation, but it's just not the point here. 
+
+```{r lda.lin, fig.height=4.5, fig.width=4.5}
+suppressWarnings(library(MASS))
+model.lda.lin = lda(Y~.,data=obs)
+
+sum(obs$Y==predict(model.lda.lin,newdata=obs[,1:2])$class)/N
+
+plot(x.grid,col=ifelse(predict(model.lda.lin,newdata=x.grid)$class==1,"red","blue"),
+     main="LDA Y ~ X1+X2",pch=19,cex=0.5)
+```
+
+As we can see, the fitted model is (nearly) the same as Model 3 we "guessed" earlier, the calculated accuracy is sligtly different (used to be 0.595 for Model 3) only because in model 3 we used theoretically optimal parameters, while the decision boundary we just obtained from fitting the finite-size sample of the data is not precisely the $x_1=x_2$ diagonal due to random noise in the sample. We might have used Logistic Regression as well, and in this case with the Y~X1+X2 formula and the linear boundary (with respect to variables used for fitting!) logisitc regression always results in, we would get the same decision boundary and the same accuracy (i.e. the same model).
+
+When working with a dataset with any sizeable number of variables, we would also most likely try some sort of variable selection/exploration. While not necessarily a must for a dataset with just two variables (still not a bad idea though, or rather in a low-dimensional case we could probably just inspect the dataset visually and try spotting any interesting structure), if we were keen enough we might have wanted to try fitting models with reduced dimensionality. Let us try variable X1:
+
+```{r lda.x1, fig.height=4.5, fig.width=4.5}
+model.lda.x1 = lda(Y~X1,data=obs)
+
+sum(obs$Y==predict(model.lda.x1,newdata=obs[,1,drop=F])$class)/N
+
+plot(x.grid,col=ifelse(predict(model.lda.x1,newdata=x.grid[,1,drop=F])$class==1,"red","blue"),
+     main="LDA Y ~ X1",pch=19,cex=0.5)
+```
+
+As you can see, what we get now is what we were calling "model 1". It is left as an exercise for the reader to confirm that fitting LDA (or logistic regression) against the single independent variable X2 would result in the model equivalent (up to the noise) to the previously used model 2.
+
+In real life (and upon examining the dataset and the models fitted so far) we might have suspected non-linearity of the true decision boundary and have decided to expand the model by adding second-order terms (in a way similar to what we did in an earlier homework when dealing with computer hardware dataset). Inclusion of the full complement of the second-order terms would actually give a decent and better decision boundary resulting in better accuracy (try it! - our oversimplified eample starts wering off), but if we considered, for whatever reason, just a product of (centered) X1 and X2, then we would get the following:
+
+```{r lda.x1x2, fig.height=4.5, fig.width=4.5}
+obs2 = obs
+# we are not really going to use X1^2 and X^2 in the formula for fitting; left here
+# if you want to try other models that use these variables:
+obs2$X1_2 = obs2$X1^2 
+obs2$X2_2 = obs2$X2^2
+obs2$X1X2 = (obs2$X1-mean(obs2$X1))*(obs2$X2-mean(obs2$X2))
+model.lda.x1x2 = lda(Y~X1X2,data=obs2)
+
+sum(obs$Y==predict(model.lda.x1x2,newdata=obs2[,c("X1X2"),drop=F])$class)/N  
+
+plot(x.grid,col=ifelse(predict(model.lda.x1x2,newdata=data.frame(
+      X1X2 = (x.grid$X1-0.5)*(x.grid$X2-0.5)
+))$class==1,"red","blue"),
+     main="LDA Y ~ X1X2",pch=19,cex=0.5)
+```
+
+which is quite similar to our previous model 4 (it's more difficult to get the sharp corners precisely, the fluctuations are strongly amplified around such singularities; note also that LDA in fact explicitly assumes that conditional distributions P(X|Y) are normal, which is not even the case here, but it worked surprisingly well so far nonetheless; in the case of Y~X1X2 logistic regression will work ever so slightly better, not by much, as it will still trip over the corner singularities).
+
+All in all, it looks very plausible that when trying to fit such dataset in real life we might have ended up with four (or more!) models, all with very similar performance, just like (or close enough to) the theoretical ones we postulated in the previous section. It turns out (just like it was demonstrated in the previous section) that instead of choosing any one of these nearly equivalent (accuracy-wise) "real" models, we could build a majority-vote classifier on top of them. In order to reuse previously written code we only need to implement an additional wrapper function. Indeed, the functions (individual models) passed to the $\tt model.ensemble()$ defined earlier are expected to be able take the observations X1, X2 and return the classification results. Now we have LDA fitted model objects that require a call to $\tt predict()$ in order to obtain the class labels. The function defined below wraps that call and provides the interface required by our existing code:
+
+```{r ensemble.lda, fig.height=4.5, fig.width=4.5}
+
+# note that here we define a *closure*: our function returns a *function*!!
+# the returned function f wraps around the specific fitted model object m and 
+# provides the call interface f(x1,x2) to that model as required by our earlier 
+# code. Note that argument m exists when wrap.model() is executed or, in other words, 
+# at thetime f was *defined*; however when wrap,model() function returns f and exits,
+# the returned function still remembers the specific value of m it was defined with.
+# That's what a "closure" is.
+wrap.model = function(m) {
+  f = function(x1, x2=NULL) {
+    obs = pack.vars(x1,x2)
+    # note that in the newdata object we pass X1, X2, and X1X2 in order to accomodate all the 
+    # different models we want to use the wrapper with; if the specific model's formula
+    # does not refer to a particular variable (e.g. X2), then the latter variable in newdata
+    # will be simply ignored (at least this is the case for predict.lda(), unfortunately
+    # not all models behave like this)
+    predict(m,newdata=data.frame(X1=obs$X1, X2=obs$X2, 
+                                 X1X2=(obs$X1-mean(obs$X1))*(obs$X2-mean(obs$X2))))$class
+  }
+  return(f)
+}
+
+
+# we did not define this one earlier:
+model.lda.x2 = lda(Y~X2,data=obs)
+
+# vector of model function wrappers to poll for majority vote:
+wm = c(
+  wrap.model(model.lda.x1), 
+  wrap.model(model.lda.x2), 
+  wrap.model(model.lda.x1x2))
+
+sum(obs$Y==model.ensemble(obs[,1:2], models=wm))/N
+
+plot(x.grid,col=ifelse(model.ensemble(x.grid,models=wm)==1,"red","blue"),
+     main="Ensemble: ~X1, ~X2, and ~X1X2",pch=19,cex=0.5)
+```
+
+The results demonstrate that aside from the two strange protrusions (which are very narrow though and are due to the noise - the boundaries in ~X1 and ~X2 models are not exactly at 0,5 and don't quite match those in the ~X1X2 model), the area where the combined model predicts 1 largely reproduces what it should be for the dataset in hand, and the average accuracy of the combined model increased, albeit modestly, to 62.5% (compare to the results obtained above with individual models, which all had ~59% accuracy).
+
+### Discussion
+
+As we have demonstrated in this Note, it is possible to combine a few suboptimal models into a "metamodel", or ensemble model, that will work better than any of the individual models it is built on top of. From the careful examination of the examples of the models we have considered, it should be clear (at least intuitively) that such improvement might occur when we have different models that make *different errors*. Indeed, very importantly, the 3 models that we have successfully combined into a superior ensemble classifier all had the same *average* error rate, but they were making gross misclassification errors in *different* regions of the variable space (X1, X2). In other words, some model(s) might be better at classifying one subset of examples, while the other(s) might be better at classifying a differenbt subset. For instance, our model 1 (either ad-hoc, or the based on LDA Y~X1 fit) was in fact very good at classifying observations on the left, $x_1<0.5$ but performed relatively poorly at $x_1>0.5$ (misclassified the whole Q2 region), while model 2 (Y~X2) was pretty good at classifying observations above the midline, $x_2> 0.5$, but was suboptimal for cases with $x_2 < 0.5$.
+
+* When we have a collection of models such that the mistakes they make on the same cases are *differen*, even when the models' *average* performances across the whole dataset are the same, there is a hope that if we consult them all, we may improve the result, ever so slightly. 
+
+This is not unlike asking for a second, third, fourth, ..., opinion for a medical diagnosis. Important: we do not necessarily expect - albeit we certainly hope! - that the other doctors do not make mistakes at all. Maybe both the first physician and all the next ones make mistakes in 1% of cases, but we certainly hope that *if* they make those mistakes randomly, then it is unlikely that if you poll a few doctors they will all make the *same* mistake. In fact, even if each one of them makes a mistake in 49% of cases, but truly *randomly*, then you will still get the truth if you poll sufficient number of them. This is what the slides 26-28 in Week 10 slidedeck illustrate: what happens if we take a specific case (e.g. a patient), and ask multiple models ("physicians") for their predictions ("diagnosis"). If any given model's overall error rate is E *and* we believe that model's errors are distributed truly randomly among all possible cases, then the probability that a given model made a mistake on the given case we are interested in is also E. The plots in the slides show just that: what happens to the accuracy of prediction for the fixed case we are interested in, when we poll multiple models, all with fixed average error rate E and with mistakes randomly distributed in the space of all cases.
+
+Note that "randomly" is a keyword here, so the curves shown in the slides are the overly optimistic, *best case* scenario. In reality, the patient's case may be a particularly difficult one, so more doctors tend to make mistakes just in that case. Note how our models 1, 2, and 3 were all very successful in predicting outcome correctly in the quadrants Q1 and Q3 ("easy cases"), and disagreed profoundly only on a subset of cases represented by Q2 and Q4 ("harder cases"). 
+
+Clearly, in the ultimate case when you have different models that make the same predictions for (almost) any observation, even though those models might be formally "different" (this might happen, for instance, if one model is trained on some variable X112 and another one is trained on 
+some other variable X537, but those variables are highly correlated, so either one of them can be used to predict the outcome *and* the value of the other variable), combining such models into an ensemble predictor is quite useless. Indeed, what is the point of polling a crowd where everyone is going to give the same opinion on any given issue anyway? One representative from such a crowd would be enough!
+
+* Thus, we arrive to the concepts of model diversity and independence. We are not giving a formal definition here, but it should be intuitively clear from the discussion above that what we want are the models that do *not* all predict the same outcome (regardless whether the prediction is correct or wrong) for any given observation - we rather want them to make mistakes on *different* subsets of cases, in other words we want to have some good share of disagreement among them (model diversity)!
+
+* Additionally, we want those errors to be distributed as randomly as possible from one model to the next, so that, for instance,  predictions made by two (diverse) models do not largely define the predictions that the third one is going to make. Case in point: consider the models 1, 2, and 3 we examined earlier. They are certainly diverse as they make mistakes in different subregions of the variable space $(X1, X2)$. However, as we have observed they are not independent! Indeed, when we tried to combine them, we just got back the model 3, without any further improvement!
+
+So how important is the majority vote-based prediction (or ensemble averaging in the case of regression)? Can we instead just build a single model that's complex enough to learn everything there is to learn about the data? In the case of the dataset we considered in this Note, we probably could, and this is where the utility of our deliberatly oversimplified example certainly ends. However in real life we are often dealing with datasets that contain hundreds if not thousands of variables and may exhibit very complex, non-trivial structure in the high-dimensional space. Overly complex models may start overfitting the noise faster than they start capturing all the real, fine-grained pecularities and interesting features present in the data. Building multiple models that are even deliberately suboptimal globally (e.g. their *average* error rate across the whole variable domain is higher than we could potentially get with a single, more complex model) but are potentially good at learning the dependence in some limited subregion, and then building an ensemble from such models may result in overall gain. Of course, as it was discussed above, this will work only if we manage to build a set of sufficiently diverse and independent models. 
+
+We have seen examples of just such an approach in bagging trees and in random forest. By boostrapping the data for each individual tree we are, in a sense, taking looks at the data from different vantage points in the hope that each tree will learn something at least about part of the data. The random forest approach takes this one step further by using only a randomly selected subset of all available variables at each split, which certainly further increases the diversity of the individual models (trees) been built. In many approaches/flavors the finesse of each individual model is further limited, deliberately. For instance, in some forests/boosting trees the algorithm is specifically instructed to not grow any individual tree past certain branching depth (which is typically quite shallow, anywhere from 6 to just 2). Again. the hope is that such short "stump" of a tree will not overfit. Probably we will pay the price of learning less than we potentially could learn with a *single* tree built without depth limit; instead our severely restricted tree (or any other model for that matter) will learn only some partial aspect of the data; but aggregating many such models, each having different partial information about the data, into a combined model may bring a greater good, through a process illustrated in this Note.
+
+Finally, remember our usual motto: it depends! Ensemble methods are indeed very powerful and work tremendously well in many situations, but not always. If your data are dull and do not contain anything beyond two well separated clouds of points, one blue, one red, in the multidimensional variable space, then each individual model will probably successfully learn just that and there will be no diversity and/or no independence despite all the bootstrapping and variable subset selection tricks. And instead a much simpler model that is capable of drawing a separating hyperplane between those two clouds (for instance, lda) will do just fine. Even when the data *are* complex and there is indeed a lot to learn, ensemble methods require very careful tuning in order to exhibit their true strength (what branching depth will work the best? how many variables we want to subsample randomly at each branching point? waht learning rate should we use?). Answering those questions requires extensive crossvalidation in the multidimensional space of the model's tuning parameters and it is not an easy task. Proper variable selection and/or transformations may still offer tremendous help - depending on the data! - and so forth.
+
+
+---------------------------------------------
+
