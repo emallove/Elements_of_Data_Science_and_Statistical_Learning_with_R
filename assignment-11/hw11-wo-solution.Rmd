@@ -45,6 +45,7 @@ getTestData <- function(nObsArg = 1000, nClassVarsArg = 2, nNoiseVarsArg = 1, de
     xyzTest[,iTmp] <- xyzTest[,iTmp] + deltaTest
     classTest <- classTest * deltaTest
   }
+  classTrain <- factor(classTrain > 0)
   return ( list(
     "xyzTest"    = xyzTest,
     "xyzTrain"   = xyzTrain,
@@ -62,7 +63,6 @@ xyzTrain   = l$xyzTrain
 classTest  = l$classTest
 classTrain = l$classTrain
 
-classTrain <- factor(classTrain > 0)
 table(classTrain)
 # plot resulting attribute levels colored by outcome:
 pairs(xyzTrain,col=as.numeric(classTrain))
@@ -70,17 +70,53 @@ pairs(xyzTrain,col=as.numeric(classTrain))
 
 > We can see that it is the interaction between the first two variables that has influences the outcome (we simulated it this way, of course!) and that points belonging to each of the two classes cannot be readily separated by a single line in 2D (or a single surface in 3D).
 
+
+```{r ggplot_Lda_Rf_Knn}
+
+ggplot_Lda_Rf_Knn <- function(err, dfTmp, ldaTmpTbl, rfTmpTbl) {
+  ggplot(dfTmp,aes(x=k,y=err)) + geom_point() + scale_x_log10() + 
+          geom_hline(
+            aes(yintercept = err,colour=type),
+            data=data.frame(
+                type=c("LDA","RF"),
+                err=c(
+                  1 - sum(diag(ldaTmpTbl)) / sum(ldaTmpTbl),
+                  1 - sum(diag(rfTmpTbl)) / sum(rfTmpTbl)
+                )
+            )
+          ) + ggtitle("KNN error rate")
+}
+```
+
 ```{r getRfTmpTable}
 # Fit random forest to train data, obtain test error:
 getRfTmpTable <- function(xyzTest, xyzTrain, classTest, classTrain) {
   rfRes <- randomForest(xyzTrain, classTrain)
-  rfTmpTbl <- table(classTest,predict(rfRes,newdata=xyzTest))
-  rfTmpTbl
+  rfTmpTbl <- table(classTest, predict(rfRes, newdata=xyzTest))
   return (rfTmpTbl)
 }
 
-rfTmpTbl <- getRfTmpTable(xyzTest, xyzTrain, classTest, classTrain)
-rfTmpTbl
+# Why are these args: 25, 2, 3, 1 -- why are they a problem for RandomFOrest due
+#   to "response has five or fewer unique values"
+# l <- getTestData(1000, 2, 1, 1)
+# xyzTest    <- l$xyzTest
+# xyzTrain   <- l$xyzTrain
+# classTest  <- l$classTest
+# classTrain <- l$classTrain
+# 
+# rfTmpTbl <- getRfTmpTable(xyzTest, xyzTrain, classTest, classTrain)
+# 
+# l <- getTestData(25, 2, 3, 1)
+# xyzTest    <- l$xyzTest
+# xyzTrain   <- l$xyzTrain
+# classTest  <- l$classTest
+# classTrain <- l$classTrain
+# 
+# rfTmpTbl <- getRfTmpTable(xyzTest, xyzTrain, classTest, classTrain)
+# rfTmpTbl
+
+# works fine here
+# ggplot_Lda_Rf_Knn(err, dfTmp, ldaTmpTbl, rfTmpTbl)
 ```
 
 > Random forest seems to do reasonably well on such dataset.
@@ -126,20 +162,7 @@ l <- getKnnTmpTable(xyzTest, xyzTrain, classTest, classTrain, 99999)
 dfTmp = l$dfTmp
 err   = l$err
 
-ggplot_Lda_Rf_Knn <- function(err, dfTmp, ldaTmpTbl, rfTmpTbl) {
-  ggplot(dfTmp,aes(x=k,y=err)) + geom_point() + scale_x_log10() + 
-          geom_hline(
-            aes(yintercept = err,colour=type),
-            data=data.frame(
-                type=c("LDA","RF"),
-                err=c(
-                  1 - sum(diag(ldaTmpTbl)) / sum(ldaTmpTbl),
-                  1 - sum(diag(rfTmpTbl)) / sum(rfTmpTbl)
-                )
-            )
-          ) + ggtitle("KNN error rate")
-}
-
+# undebug(ggplot_Lda_Rf_Knn)
 ggplot_Lda_Rf_Knn(err, dfTmp, ldaTmpTbl, rfTmpTbl)
 ```
 
@@ -159,7 +182,6 @@ xyzTrain   = l$xyzTrain
 classTest  = l$classTest
 classTrain = l$classTrain
 
-classTrain <- factor(classTrain > 0)
 table(classTrain)
 # plot resulting attribute levels colored by outcome:
 pairs(xyzTrain, col=as.numeric(classTrain))
@@ -167,22 +189,29 @@ pairs(xyzTrain, col=as.numeric(classTrain))
 
 ```{r compareLDA_KNN_and_RandomForest}
 
-compare_LDA_KNN_RandomForest <- function(nObsArg = 1000, nClassVarsArg, nNoiseVarsArg, deltaClassArg) {
+compare_LDA_KNN_RandomForest <- function(nObsArg, nClassVarsArg, nNoiseVarsArg, deltaClassArg) {
   
   l <- getTestData(nObsArg, nClassVarsArg, nNoiseVarsArg, deltaClassArg)
-  xyzTest    = l$xyzTest
-  xyzTrain   = l$xyzTrain
-  classTest  = l$classTest
-  classTrain = l$classTrain
+  xyzTest    <- l$xyzTest
+  xyzTrain   <- l$xyzTrain
+  classTest  <- l$classTest
+  classTrain <- l$classTrain
 
   ldaTmpTbl <- getLdaTmpTable(xyzTest, xyzTrain, classTest, classTrain)
-  # rfTmpTbl <- getRfTmpTable(xyzTest, xyzTrain, classTest, classTrain)
+  rfTmpTbl <- getRfTmpTable(xyzTest, xyzTrain, classTest, classTrain)
+  # print("rfTmpTbl") 
+  # print(rfTmpTbl) 
+  # rfTmpTbl
   l <- getKnnTmpTable(xyzTest, xyzTrain, classTest, classTrain, nObsArg)
   dfTmp = l$dfTmp
   err   = l$err
-
+  
+  print(err)
+  
   print(ggplot_Lda_Rf_Knn(err, dfTmp, ldaTmpTbl, rfTmpTbl))
 }
+
+undebug(compare_LDA_KNN_RandomForest)
 
 for (nObs in c(25, 100, 500)) {
   compare_LDA_KNN_RandomForest(nObs, 2, 3, 1)
