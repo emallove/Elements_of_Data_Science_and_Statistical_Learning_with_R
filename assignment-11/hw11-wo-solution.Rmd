@@ -21,9 +21,20 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ```{r getTestData}
+
+globalTrainDataObs = 1000
+globalClassVar     = 2
+globalNoiseVars    = 1
+globalDeltaClass   = 1
+
 # How many observations:
-getTestData <- function(nObsArg = 1000, nClassVarsArg = 2, nNoiseVarsArg = 1, deltaClassArg = 1) {
-  nObs <- nObsArg
+getTestData <- function(
+  trainDataObsArg = 1000,
+  nClassVarsArg = 2,
+  nNoiseVarsArg = 1,
+  deltaClassArg = 1) {
+
+  nObs <- trainDataObsArg
   # How many predictors are associated with outcome:
   nClassVars <- nClassVarsArg
   # How many predictors are not:
@@ -56,12 +67,13 @@ getTestData <- function(nObsArg = 1000, nClassVarsArg = 2, nNoiseVarsArg = 1, de
 ```
 
 ```{r testAndTrain1}
-l <- getTestData(1000, 2, 1, 1)
 
-xyzTest    = l$xyzTest
-xyzTrain   = l$xyzTrain
-classTest  = l$classTest
-classTrain = l$classTrain
+gtd <- getTestData(globalTrainDataObs, globalClassVar, globalNoiseVars, globalDeltaClass)
+
+xyzTest    = gtd$xyzTest
+xyzTrain   = gtd$xyzTrain
+classTest  = gtd$classTest
+classTrain = gtd$classTrain
 
 table(classTrain)
 # plot resulting attribute levels colored by outcome:
@@ -73,7 +85,7 @@ pairs(xyzTrain,col=as.numeric(classTrain))
 
 ```{r ggplot_Lda_Rf_Knn}
 
-ggplot_Lda_Rf_Knn <- function(err, dfTmp, ldaTmpTbl, rfTmpTbl) {
+ggplot_Lda_Rf_Knn <- function(err, dfTmp, ldaTmpTbl, rfTmpTbl, titleArg) {
   ggplot(dfTmp,aes(x=k,y=err)) + geom_point() + scale_x_log10() + 
           geom_hline(
             aes(yintercept = err,colour=type),
@@ -84,7 +96,7 @@ ggplot_Lda_Rf_Knn <- function(err, dfTmp, ldaTmpTbl, rfTmpTbl) {
                   1 - sum(diag(rfTmpTbl)) / sum(rfTmpTbl)
                 )
             )
-          ) + ggtitle("KNN error rate")
+          ) + ggtitle(titleArg)
 }
 ```
 
@@ -104,7 +116,6 @@ getRfTmpTable <- function(xyzTest, xyzTrain, classTest, classTrain) {
 # classTest  <- l$classTest
 # classTrain <- l$classTrain
 # 
-# rfTmpTbl <- getRfTmpTable(xyzTest, xyzTrain, classTest, classTrain)
 # 
 # l <- getTestData(25, 2, 3, 1)
 # xyzTest    <- l$xyzTest
@@ -115,13 +126,13 @@ getRfTmpTable <- function(xyzTest, xyzTrain, classTest, classTrain) {
 # rfTmpTbl <- getRfTmpTable(xyzTest, xyzTrain, classTest, classTrain)
 # rfTmpTbl
 
-# works fine here
-# ggplot_Lda_Rf_Knn(err, dfTmp, ldaTmpTbl, rfTmpTbl)
+rfTmpTbl <- getRfTmpTable(xyzTest, xyzTrain, classTest, classTrain)
+rfTmpTbl
 ```
 
 > Random forest seems to do reasonably well on such dataset.
 
-```{r getLdaTmpTable}
+```{r getLdaTmpTable1}
 # Fit LDA model to train data and evaluate error on the test data:
 
 getLdaTmpTable <- function(xyzTest, xyzTrain, classTest, classTrain) {
@@ -134,7 +145,7 @@ getLdaTmpTable <- function(xyzTest, xyzTrain, classTest, classTrain) {
 ldaTmpTbl <- getLdaTmpTable(xyzTest, xyzTrain, classTest, classTrain)
 ```
 
-```{r getLdaTmpTable}
+```{r getLdaTmpTable2}
 # Fit LDA model to train data and evaluate error on the test data:
 
 getKnnTmpTable <- function(xyzTest, xyzTrain, classTest, classTrain, kMax) {
@@ -162,8 +173,10 @@ l <- getKnnTmpTable(xyzTest, xyzTrain, classTest, classTrain, 99999)
 dfTmp = l$dfTmp
 err   = l$err
 
+titleArg = sprintf("training args: %d, class var args: %d, noise vars: %d, delta classes: %d", globalTrainDataObs, globalClassVar, globalNoiseVars, globalDeltaClass)
+
 # undebug(ggplot_Lda_Rf_Knn)
-ggplot_Lda_Rf_Knn(err, dfTmp, ldaTmpTbl, rfTmpTbl)
+ggplot_Lda_Rf_Knn(err, dfTmp, ldaTmpTbl, rfTmpTbl, titleArg)
 ```
 
 > We can see from the above that there is a range of $k$ values where test error of KNN is the lowest and it is even lower that that of RF.  Now would be a good moment to think why one would want to choose RF over KNN or vice a versa for modeling the data if the figure above was representative of their true relative performance on a new dataset.
@@ -176,11 +189,11 @@ ggplot_Lda_Rf_Knn(err, dfTmp, ldaTmpTbl, rfTmpTbl)
 > Generate training datasets with `nObs=25`, `100` and `500` observations such that two variables are associated with the outcome as parameterized above and three are not associated and average difference between the two classes is the same as above (i.e. in the notation from the above code `nClassVars=2`, `nNoiseVars=3` and `deltaClass=1`).  Obtain random forest, LDA and KNN test error rates on a (for greater stability of the results, much larger, say, with 10K observations) test dataset simulated from the same model.  Describe the differences between different methods and across the sample sizes used here.
 
 ```{r trainAndTest}
-l <- getTestData(1000, 2, 3, 1)
-xyzTest    = l$xyzTest
-xyzTrain   = l$xyzTrain
-classTest  = l$classTest
-classTrain = l$classTrain
+gtd <- getTestData(1000, 2, 3, 1)
+xyzTest    = gtd$xyzTest
+xyzTrain   = gtd$xyzTrain
+classTest  = gtd$classTest
+classTrain = gtd$classTrain
 
 table(classTrain)
 # plot resulting attribute levels colored by outcome:
@@ -191,24 +204,27 @@ pairs(xyzTrain, col=as.numeric(classTrain))
 
 compare_LDA_KNN_RandomForest <- function(nObsArg, nClassVarsArg, nNoiseVarsArg, deltaClassArg) {
   
-  l <- getTestData(nObsArg, nClassVarsArg, nNoiseVarsArg, deltaClassArg)
-  xyzTest    <- l$xyzTest
-  xyzTrain   <- l$xyzTrain
-  classTest  <- l$classTest
-  classTrain <- l$classTrain
+  gtd <- getTestData(nObsArg, nClassVarsArg, nNoiseVarsArg, deltaClassArg)
+  xyzTest    <- gtd$xyzTest
+  xyzTrain   <- gtd$xyzTrain
+  classTest  <- gtd$classTest
+  classTrain <- gtd$classTrain
 
   ldaTmpTbl <- getLdaTmpTable(xyzTest, xyzTrain, classTest, classTrain)
   rfTmpTbl <- getRfTmpTable(xyzTest, xyzTrain, classTest, classTrain)
   # print("rfTmpTbl") 
   # print(rfTmpTbl) 
   # rfTmpTbl
+
   l <- getKnnTmpTable(xyzTest, xyzTrain, classTest, classTrain, nObsArg)
   dfTmp = l$dfTmp
   err   = l$err
   
   print(err)
   
-  print(ggplot_Lda_Rf_Knn(err, dfTmp, ldaTmpTbl, rfTmpTbl))
+  titleArg = sprintf("training args: %d, class var args: %d, noise vars: %d, delta classes: %.2f", nObsArg, nClassVarsArg, nNoiseVarsArg, deltaClassArg)
+
+  print(ggplot_Lda_Rf_Knn(err, dfTmp, ldaTmpTbl, rfTmpTbl, titleArg))
 }
 
 undebug(compare_LDA_KNN_RandomForest)
@@ -218,17 +234,27 @@ for (nObs in c(25, 100, 500)) {
 }
 ```
 
-
 # Sub-problem 2 (15 points): effect of signal magnitude
 
-For training datasets with `nObs=100` and `500` observations simulate data as shown above with average differences between the two classes that are same as above, half of that and twice that (i.e. `deltaClass=0.5`, `1` and `2`).  Obtain and plot test error rates of random forest, LDA and KNN for each of the six (two samples sizes times three signal magnitudes) combinations of sample size and signal strengths.  As before use large test dataset (e.g. 10K observations or so) for greater stability of the results.  Describe the most pronounced differences across error rates for those datasets: does the increase in the number of observations impact the error rate of the models?  Does change in the magnitude of signal impact their performance?  Are different classifier approaches impacted in a similar way?
+> For training datasets with `nObs=100` and `500` observations simulate data as shown above with average differences between the two classes that are same as above, half of that and twice that (i.e. `deltaClass=0.5`, `1` and `2`).  Obtain and plot test error rates of random forest, LDA and KNN for each of the six (two samples sizes times three signal magnitudes) combinations of sample size and signal strengths.  As before use large test dataset (e.g. 10K observations or so) for greater stability of the results.  Describe the most pronounced differences across error rates for those datasets: does the increase in the number of observations impact the error rate of the models?  Does change in the magnitude of signal impact their performance?  Are different classifier approaches impacted in a similar way?
+
+
+```{r effectOfSignalMagnitude}
+
+for (deltaClass in c(0.5, 1, 2)) {
+  for (trainObs in c(100, 500)) {
+    compare_LDA_KNN_RandomForest(trainObs, nClassVarsArg = 2, nNoiseVarsArg = 1, deltaClassArg = deltaClass)
+  }
+}
+
+```
 
 # Sub-problem 3 (15 points): varying counts of predictors
 
-For all possible pairwise combinations of the numbers of variables associated with outcome (`nClassVars=2` and `5`) and those not associated with the outcome (`nNoiseVars=1`, `3` and `10`) -- six pairwise combinations in total -- obtain and present graphically test errors from random forest, LDA and KNN.  Choose signal magnitude (`deltaClass`) and training data sample size so that this simulation yields non-trivial results -- noticeable variability in the error rates across those six pairwise combinations of attribute counts.  Describe the results: what is the impact of the increase of the number of attributes associated with the outcome on the classifier performance?  What about the number of attributes not associated with outcome - does it affect classifier error rate?  Are different classifier methods affected by these simulation parameters in a similar way?
+> For all possible pairwise combinations of the numbers of variables associated with outcome (`nClassVars=2` and `5`) and those not associated with the outcome (`nNoiseVars=1`, `3` and `10`) -- six pairwise combinations in total -- obtain and present graphically test errors from random forest, LDA and KNN.  Choose signal magnitude (`deltaClass`) and training data sample size so that this simulation yields non-trivial results -- noticeable variability in the error rates across those six pairwise combinations of attribute counts.  Describe the results: what is the impact of the increase of the number of attributes associated with the outcome on the classifier performance?  What about the number of attributes not associated with outcome - does it affect classifier error rate?  Are different classifier methods affected by these simulation parameters in a similar way?
 
 # Sub-problem 4: (15 points): effect of `mtry`
 
-Parameter `mtry` in the call to `randomForest` defines the number of predictors randomly chosen to be evaluated for their association with the outcome at each split (please see help page for `randomForest` for more details).  By default for classification problem it is set as a square root of the number of predictors in the dataset.  Here we will evaluate the impact of using different values of `mtry` on the error rate by random forest.
+> Parameter `mtry` in the call to `randomForest` defines the number of predictors randomly chosen to be evaluated for their association with the outcome at each split (please see help page for `randomForest` for more details).  By default for classification problem it is set as a square root of the number of predictors in the dataset.  Here we will evaluate the impact of using different values of `mtry` on the error rate by random forest.
 
-For `nObs=5000`, `deltaClass=2`, `nClassVars=3` and `nNoiseVars=20` generate data using the above approach, run `randomForest` on it with `mtry=2`, `5` and `10` and obtain corresponding test error for these three models.  Describe the impact of using different values of `mtry` on the test error rate by random forest and compare it to that by LDA/KNN. 
+> For `nObs=5000`, `deltaClass=2`, `nClassVars=3` and `nNoiseVars=20` generate data using the above approach, run `randomForest` on it with `mtry=2`, `5` and `10` and obtain corresponding test error for these three models.  Describe the impact of using different values of `mtry` on the test error rate by random forest and compare it to that by LDA/KNN. 
