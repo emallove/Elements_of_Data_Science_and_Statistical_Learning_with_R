@@ -65,7 +65,7 @@ plot(log10(frcDat[,c("ncontrib","avecontr")]))
 abline(lm(log10(avecontr)~log10(ncontrib),frcDat),col=2,lwd=2)
 ```
 
-Observations are now more evenly distributed around the fit.
+> Observations are now more evenly distributed around the fit.
 
 ```{r nAveContrLogDiag,fig.width=8,fig.height=8}
 old.par <- par(mfrow=c(2,2))
@@ -73,9 +73,9 @@ plot(lm(log10(avecontr)~log10(ncontrib),frcDat))
 par(old.par)
 ```
 
-Aside from inevitably discrete fitted values for the lower end of the number of contributions (1, 2, 3, ...) the plots of residuals are now upon log-transformation much more like "shapeless clouds", standardized residuals are more on par with theoretical quantiles and no more contours representing Cook's distance of 0.5 and 1 (notice about an order of magnitude decrease in leverage values also).  Overall, far less troubling appearance of diagnostic plots.
-
-We'll use this model for log-transformed data to get confidence and prediction intervals.  R functions `confint` returns confidence intervals for model parameters, while `predict` (with appropriate parameters) returns model predictions for the new data and (if asked), can also return corresponding estimates of uncertainty associated with them:
+> Aside from inevitably discrete fitted values for the lower end of the number of contributions (1, 2, 3, ...) the plots of residuals are now upon log-transformation much more like "shapeless clouds", standardized residuals are more on par with theoretical quantiles and no more contours representing Cook's distance of 0.5 and 1 (notice about an order of magnitude decrease in leverage values also).  Overall, far less troubling appearance of diagnostic plots.
+> 
+> We'll use this model for log-transformed data to get confidence and prediction intervals.  R functions `confint` returns confidence intervals for model parameters, while `predict` (with appropriate parameters) returns model predictions for the new data and (if asked), can also return corresponding estimates of uncertainty associated with them:
 
 ```{r nAveContrIntls}
 confint(lm(log10(avecontr)~log10(ncontrib),frcDat))
@@ -83,49 +83,50 @@ confint(lm(log10(avecontr)~log10(ncontrib),frcDat))
 10^predict(lm(log10(avecontr)~log10(ncontrib),frcDat),newdata=data.frame(ncontrib=c(9,10,11)),interval='prediction')
 ```
 
-Note the transformation of the confidence and prediction intervals on the model predictions to put it back onto the original scale of measurements (dollars).
+> Note the transformation of the confidence and prediction intervals on the model predictions to put it back onto the original scale of measurements (dollars).
+> 
 
 # Problem 1: model of target contribution and last contribution (30 points)
 
-Here we will identify the variable most correlated with the outcome (the donations to the campaign of interest - column `contrib` in `fund-raising.csv` file), build simple linear model for this outcome as a function of this variable, evaluate model summary and diagnostic plots and assess impact of using log-transformed (instead of untransformed) attributes on the model peformance.  The following steps provide approximate outline of tasks for achieving these goals:
-
-1. Calculate correlations between all *continuous* attributes in this dataset.  Given potential non-linear relationship between some of the attributes and outcome, it might be prudent to use both Pearson and Spearman correlations to determine which variable is most robustly correlated with the target contributions (`contrib`).
-
-2. Fit linear model for target campaign contribution as the outcome and the last contribution by this donor (`lastcontr` in `fund-raising.csv`) the predictor, using R function `lm`; inspect the fitted model using `summary` function, ... 
+> 
+> Here we will identify the variable most correlated with the outcome (the donations to the campaign of interest - column `contrib` in `fund-raising.csv` file), build simple linear model for this outcome as a function of this variable, evaluate model summary and diagnostic plots and assess impact of using log-transformed (instead of untransformed) attributes on the model peformance.  The following steps provide approximate outline of tasks for achieving these goals:
+> 
+> 1. Calculate correlations between all *continuous* attributes in this dataset.  Given potential non-linear relationship between some of the attributes and outcome, it might be prudent to use both Pearson and Spearman correlations to determine which variable is most robustly correlated with the target contributions (`contrib`).
+> 
+> 2. Fit linear model for target campaign contribution as the outcome and the last contribution by this donor (`lastcontr` in `fund-raising.csv`) the predictor, using R function `lm`; inspect the fitted model using `summary` function, ... 
 
 ```{r fitLinearModel}
 old.par <- par(mfrow=c(2,2))
 plot(lm(lastcontr~contrib,frcDat))
 ```
 
-and use the output to answer the following questions:
+> and use the output to answer the following questions:
+>   + Does this predictor explain significant amount of variability in response?  I.e. is there statistically (!) significant association between them?
+>   
+>   + What is the RSE and $R^2$ of this model?  
 
-   + Does this predictor explain significant amount of variability in response?  I.e. is there statistically (!) significant association between them?
-   
-   + What is the RSE and $R^2$ of this model?  
-   
-   Residual standard error: 7.22 on 3468 degrees of freedom
-   Multiple R-squared:  0.5572,	Adjusted R-squared:  0.5571    
-   
-   Remember, you can find them in the `summary` output or use `sigma` and `r.sq` slots in the result returned by `summary` instead (the `summary()` command does return a *list*; if instead of just printing the result into the console you save it into a variable, as in `model.summary <- summary(...)`, you can verify that the content of that variable *is* a list, you can see with `names(model.summary)` which elements this list contains, and you can extract, examine, and use them at will if you ever need to)
+Residual standard error: 7.22 on 3468 degrees of freedom
+Multiple R-squared:  0.5572,	Adjusted R-squared:  0.5571    
+
+> Remember, you can find them in the `summary` output or use `sigma` and `r.sq` slots in the result returned by `summary` instead (the `summary()` command does return a *list*; if instead of just printing the result into the console you save it into a variable, as in `model.summary <- summary(...)`, you can verify that the content of that variable *is* a list, you can see with `names(model.summary)` which elements this list contains, and you can extract, examine, and use them at will if you ever need to)
    
 ```{r fitLinearModel-summary}
 old.par <- par(mfrow=c(2,2))
 summary(lm(lastcontr~contrib,frcDat))
 ```
    
-   + What are the model coefficients and what would be their interpretation? What is the meaning of the intercept of the model, for example?  
+> + What are the model coefficients and what would be their interpretation? What is the meaning of the intercept of the model, for example?  
    
-   The intercept is the Y value if X is equal to 0.  In the case where X is never 0, the intercept is meaningless.
+The intercept is the Y value if X is equal to 0.  In the case where X is never 0, the intercept is meaningless.
    
    Coefficients:
             Estimate Std. Error t value Pr(>|t|)    
 (Intercept)  4.08639    0.20332   20.10   <2e-16 ***
 contrib      0.70067    0.01061   66.06   <2e-16 ***
    
-   What about the slope - how would you interpret its value?
+> What about the slope - how would you interpret its value?
 
-3. Create scatterplot of target campaign contribution and the last contribution (the attributes used in the model above) and add to the plot the regression line from the model using `abline` function.
+> 3. Create scatterplot of target campaign contribution and the last contribution (the attributes used in the model above) and add to the plot the regression line from the model using `abline` function.
 
 ```{r targetCampaignContributionAndLastContributionPlot}
 plot(frcDat[,c("lastcontr", "contrib")])
@@ -134,7 +135,7 @@ abline(h=0,lty=2)
 abline(v=0,lty=2)
 ```
 
-4. Create diagnostic plots of the model and comment on any irregularities that they present.  For instance, does the plot of residuals vs. fitted values suggest presence of non-linearity that remains unexplained by the model?  Does scale-location plot suggest non-uniformity of variance along the range of fitted values?  Are some standardized residuals far greater than theoretical quantiles?  What about residuals vs. leverage plot and Cook's distance contours therein?  How does your conclusions compare to what's shown in the plot of the predictor and outcome with regression line added to it -- i.e. the plot that was generated above?
+> 4. Create diagnostic plots of the model and comment on any irregularities that they present.  For instance, does the plot of residuals vs. fitted values suggest presence of non-linearity that remains unexplained by the model?  Does scale-location plot suggest non-uniformity of variance along the range of fitted values?  Are some standardized residuals far greater than theoretical quantiles?  What about residuals vs. leverage plot and Cook's distance contours therein?  How does your conclusions compare to what's shown in the plot of the predictor and outcome with regression line added to it -- i.e. the plot that was generated above?
 
 ```{r DiagPlots,fig.width=4,fig.height=4}
 old.par <- par(mfrow=c(2,2))
@@ -142,25 +143,73 @@ plot(lm(lastcontr~contrib,frcDat))
 par(old.par)
 ```
 
-5. Use function `confint` to obtain 95% confidence intervals on model parameters
+> 5. Use function `confint` to obtain 95% confidence intervals on model parameters
 
-6. Use this model and `predict` function to make predictions for the last contribution values of 10, 20 and 40. Remember that when you pass new data to `predict`, you have to make sure that the variable (column) names in those data match the predictor variable name(s) used in the model, otherwise `predict` will not know how to match the data to the model variables! Use `confidence` and `prediction` settings for parameter `interval` in the call to `predict` to obtain 90% confidence and prediction intervals on these model predictions (please double check what is default confidence level used by those functions and adjust if/as necessary).  Explain the differences between interpretation of:
-    + confidence intervals on model parameters and model predictions
-    + confidence and prediction intervals on model predictions
-    + comment on whether confidence or prediction intervals (on predictions) are wider and why
+```{r nAveContrIntls2}
+confint(lm(log10(avecontr)~log10(ncontrib),frcDat))
+10^predict(lm(lastcontr~contrib,frcDat), newdata=data.frame(contrib=c(9,10,11)), interval='confidence')
+10^predict(lm(lastcontr~contrib,frcDat), newdata=data.frame(contrib=c(9,10,11)), interval='prediction')
+```
+
+> 6. Use this model and `predict` function to make predictions for the last contribution values of 10, 20 and 40. Remember that when you pass new data to `predict`, you have to make sure that the variable (column) names in those data match the predictor variable name(s) used in the model, otherwise `predict` will not know how to match the data to the model variables! Use `confidence` and `prediction` settings for parameter `interval` in the call to `predict` to obtain 90% confidence and prediction intervals on these model predictions (please double check what is default confidence level used by those functions and adjust if/as necessary).  Explain the differences between interpretation of:
+>     + confidence intervals on model parameters and model predictions
+>     + confidence and prediction intervals on model predictions
+
+A prediction interval is a likelihood window containing response values a new experimental observation for given predictor settings. The confidence interval of the prediction is a likelihood window containing the mean response.
+
+>     + comment on whether confidence or prediction intervals (on predictions) are wider and why
+
+The confidence interval tells you the location of the population parameter. Prediction intervals explain both the uncertainty in knowing the value of the mean, plus random scatter. So a prediction interval is always wider than a confidence interval.
+
+    
+```{r predictLastContrContrib}
+10^predict(lm(lastcontr~contrib,frcDat), newdata=data.frame(contrib=c(10,20,40)), interval='confidence')
+10^predict(lm(lastcontr~contrib,frcDat), newdata=data.frame(contrib=c(10,20,40)), interval='prediction')
+```
 
 # Problem 2: model using log-transformed attributes (20 points)
 
-1. Use `lm()` to fit a regression model of *log-transformed* outcome (`contrib`) as a linear function of *log-transformed* last contribution and use `summary` to evaluate its results.
+> 1. Use `lm()` to fit a regression model of *log-transformed* outcome (`contrib`) as a linear function of *log-transformed* last contribution and use `summary` to evaluate its results.
+> 
+> For the purposes of this exercise we can exclude small number of observations where `lastcontr==0`, otherwise log-transformation will result in negative infinity values for those and error from the call to `lm`. (And what does last contribution of zero represent in the first place, anyway?!  Rounded values of contributions below 1?  That's a rhetorical question aimed at data producers, no need to answer it as part of this problem set.)  When you exclude those observations with `lastcontr==0` please note in your solution how many exactly you have excluded.
 
-For the purposes of this exercise we can exclude small number of observations where `lastcontr==0`, otherwise log-transformation will result in negative infinity values for those and error from the call to `lm`. (And what does last contribution of zero represent in the first place, anyway?!  Rounded values of contributions below 1?  That's a rhetorical question aimed at data producers, no need to answer it as part of this problem set.)  When you exclude those observations with `lastcontr==0` please note in your solution how many exactly you have excluded.
+```{r logTransformedForLastContrEq0}
+summary(lm(log10(subset(frcDat$lastcontr, frcDat$lastcontr != 0)) ~ log10(subset(frcDat$contrib, frcDat$lastcontr != 0)), frcDat))
+```
 
-Now that we are done with that - can we compare the fits obtained from using untransformed (above) and log-transformed attributes?  Can we directly compare RSE from these two models?  What about comparing $R^2$?  What would we conclude from this? (Please consult ISLR Ch.3.1.3 if unsure)  What would be the physical meaning of model coefficients this time?  What does model intercept represent in this case, for example?  How sensible is this and how does this compare to the meaning of the same parameter (intercept) obtained when fitting on untransformed data?
 
-2. Create an XY-scatterplot of log-transformed predictor and response and add corresponding regression line to it.  Compare it to the plot in untransformed coordinates obtained in Problem 1.  What would you conclude from such comparison?
+> 
+> Now that we are done with that - can we compare the fits obtained from using untransformed (above) and log-transformed attributes?  Can we directly compare RSE from these two models?  What about comparing $R^2$?  What would we conclude from this? (Please consult ISLR Ch.3.1.3 if unsure)  What would be the physical meaning of model coefficients this time?  What does model intercept represent in this case, for example?  How sensible is this and how does this compare to the meaning of the same parameter (intercept) obtained when fitting on untransformed data?
+> 
+> 2. Create an XY-scatterplot of log-transformed predictor and response and add corresponding regression line to it.  Compare it to the plot in untransformed coordinates obtained in Problem 1.  What would you conclude from such comparison?
 
-3. Make diagnostic plots for the model fit on log-transformed outcome and the last contribution.  Compare them to the diagnostic plots generated in Problem 1 for the model fitted using original scale of measurements (untransformed). What can you conclude from this comparison about the relative quality of these two models?
+```{r nAvePlot2}
+plot(log10(frcDat[,c("lastcontr","contrib")]))
+abline(lm(log10(subset(frcDat$lastcontr, frcDat$lastcontr != 0)) ~ log10(subset(frcDat$contrib, frcDat$lastcontr != 0)), frcDat), col=2, lwd=2)
+abline(h=0,lty=2)
+abline(v=0,lty=2)
+```
+
+> 
+> 3. Make diagnostic plots for the model fit on log-transformed outcome and the last contribution.  Compare them to the diagnostic plots generated in Problem 1 for the model fitted using original scale of measurements (untransformed). What can you conclude from this comparison about the relative quality of these two models?
+
+```{r diagnosticPlotsForLogTransformedOutcome,fig.width=8,fig.height=8}
+old.par <- par(mfrow=c(2,2))
+plot(lm(log10(subset(frcDat$lastcontr, frcDat$lastcontr != 0)) ~ log10(subset(frcDat$contrib, frcDat$lastcontr != 0)), frcDat))
+par(old.par)
+```
+
 
 # Problem 3: Adding second variable to the model (10 points)
 
-To explore effects of adding another variable to the model, continue using log-transformed attributes and fit a model of log-transformed outcome (the same target campaign contribution, column `contrib` in `fund-raising.csv`) as a function of the last contribution and average contribution (both log-transformed).  Just an additive model -- no interaction term is necessary at this point. Please obtain and evaluate the summary of this model fit, confidence intervals on its parameters and its diagnostic plots. Where applicable, compare them to the model obtained above and reflect on pros and cons of including average contribution as another variable into the model.  You may find the discussion of *variance inflation factor* (VIF) in ISLR Ch.3.3.3 (Section 6) and its implementation `vif` in `car` library particularly useful in this context. 
+> To explore effects of adding another variable to the model, continue using log-transformed attributes and fit a model of log-transformed outcome (the same target campaign contribution, column `contrib` in `fund-raising.csv`) as a function of the last contribution and average contribution (both log-transformed).  Just an additive model -- no interaction term is necessary at this point. Please obtain and evaluate the summary of this model fit, confidence intervals on its parameters and its diagnostic plots. Where applicable, compare them to the model obtained above and reflect on pros and cons of including average contribution as another variable into the model.  You may find the discussion of *variance inflation factor* (VIF) in ISLR Ch.3.3.3 (Section 6) and its implementation `vif` in `car` library particularly useful in this context. 
+
+```{r logTransformedForLastContrEq02}
+summary(lm(log10(subset(frcDat$lastcontr, frcDat$lastcontr != 0)) ~ (log10(subset(frcDat$contrib, frcDat$lastcontr != 0)) + log10(subset(frcDat$avecontr, frcDat$lastcontr != 0)))))
+```
+
+```{r diagnosticPlotsForLogTransformedOutcome2,fig.width=8,fig.height=8}
+old.par <- par(mfrow=c(2,2))
+plot(lm(log10(subset(frcDat$lastcontr, frcDat$lastcontr != 0)) ~ (log10(subset(frcDat$contrib, frcDat$lastcontr != 0)) + log10(subset(frcDat$avecontr, frcDat$lastcontr != 0))), frcDat))
+par(old.par)
+```

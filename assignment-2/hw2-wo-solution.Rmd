@@ -130,8 +130,7 @@ plot_lines(wifi_loc_data_matrix4, "4")
 
 > Next, please comment on whether given the data at hand the problem of detecting room identity on the basis of the strength of the WiFi signal appears to be an easy or a hard one to solve. Try guessing, using your best intuition, what could be an error in predicting room identity in this dataset: 50%, 20%, 10%, 5%, 2%, less than that?
 
-Given the ease in which one can find ambiguity in signal strength readings across the seven routers, it appears 
-
+_Rooms 2 and 4 are distinct, so my guesstimate error rate in those rooms would be low, e.g., 5%.  But Rooms 1 and 3 are rather similar, so I would estimate higher errors in those rooms, e.g., 20%.  Thus an overall error rate of 12%._
 
 > Later in the course we will work with this dataset again to actually develop such a classifier, and at that point you will get quantitative answer to this question. For now, what we are trying to achieve is to make you *think* about the data and to provide a (guesstimate) answer just from visual inspection of the scatterplots. Thus, there is no wrong answer at this point, just try your best, explain your (qualitative) reasoning, and make a note of your answer, so you can go back to it several weeks later.  
 > 
@@ -143,15 +142,49 @@ _There's significant overlap of signal strengths across the four rooms, though t
 
 _For a stricter scenario, we could use triangulation of signal strengths from three routers to give a precise position (a la GPS systems)._
 
-For a more lax scenario, we could ensure
+_For a more lax scenario would simply allow for a prediction of a room pair (instead of a single room).  Or allow for a series of signal strength readings, instead of just one._
 
 # Amount of Fund Raising Contributions (30 points)
 
 > This dataset presents an example of a regression problem -- predicting dollar amount of donors' contributions from a direct mail campaign based on their demographics and history of past contributions.  This dataset is a cleaned up subset of one of the datasets used in data mining competitions in the late 90s and it comes with the requirement of describing its source in rather broad (i.e. non-specific) terms if or when it is used for educational purposes.  To load data into R please use file `fund-raising.csv` available at the course website in Canvas.  More details about the data attributes can be found in corresponding file `fund-raising-notes.txt` also available from our course website in Canvas. 
 > 
 > Once the dataset in loaded into R, please determine the number of variables (explain which ones are predictors -- categorical vs. continuous -- and which one is the outcome) and observations in the dataset (R functions such as `dim`, `nrow`, `ncol` could be useful for this), generate summary of the data using `summary` function in R and generate pairwise XY-scatterplots of each pair of *continuous* attributes.
+
+
+
+```{r fund-raising}
+d <- matrix(
+      scan("fund-raising.csv",
+           skip=1,
+           sep=",",
+           what=list('numeric','numeric','numeric','numeric','numeric','numeric','numeric','numeric','numeric','numeric','numeric','numeric','character')
+      ),
+      ncol=13,
+      byrow=TRUE
+)
+
+paste("Dimensions ", dim(d))
+paste("Rows: ",      nrow(d))
+paste("Columns: ",   ncol(d))
+
+summary(d)
+```
+
 > 
 > Describe your observations and discuss which attributes might be more useful for predicting the outcome as defined in the `fund-raising-notes.txt` dataset description. 
+
+```{r fund-raising-pair-plots1}
+pairs(c(d[,1:3]))
+```
+
+```{r fund-raising-pair-plots2}
+pairs(c(d[,3:6]))
+```
+
+```{r fund-raising-pair-plots3}
+pairs(c(d[,6:8]))
+```
+
 > 
 > Try being creative: visualizing and discussing potential associations between each of individual (continuous) predictor variables and the continuous outcome is relatively straightforward. But this time around you cannot really use the outcome to stratify the points in the *pairwise* predictor-predictor scatterplots same way we did it in Problem 1: there we had just four possible values of the (categorical) outcome, but how many distinct values of the donor contribution do we have now? Do the plots make much sense and are they even interpretable if you use all those distinct values of contributed amount, as they are? Is there a way around this?
 

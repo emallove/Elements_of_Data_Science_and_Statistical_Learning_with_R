@@ -20,22 +20,29 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 ###?USArrests
+myUSArrests <- USArrests
 head(USArrests)
 apply(USArrests,2,sd)
-old.par<-par(mfrow=c(1,2),ps=16)
+# old.par<-par(mfrow=c(1,2),ps=16)
 plot(prcomp(USArrests))
 plot(prcomp(scale(USArrests)))
-par(old.par)
-old.par <- par(mfrow=c(1,2),ps=10)
+# par(old.par)
+# old.par <- par(mfrow=c(1,2),ps=10)
 pcaResTmp <- prcomp(USArrests)
 cids <- kmeans(USArrests,centers=4,nstart=10)$cluster
+plot(pcaResTmp$x[,1:2],type="p",main="Original",col=cids)
 plot(pcaResTmp$x[,1:2],type="n",main="Original")
 text(pcaResTmp$x[,1:2],rownames(pcaResTmp$x),col=cids,pch=15+cids)
-pcaResTmp <- prcomp(scale(USArrests))
-cids <- kmeans(scale(USArrests),centers=4,nstart=10)$cluster
-plot(pcaResTmp$x[,1:2],type="n",main="Scaled")
-text(pcaResTmp$x[,1:2],rownames(pcaResTmp$x),col=cids,pch=15+cids)
-par(old.par)
+```
+
+
+```{r prcompScaled}
+pcaResTmpScaled <- prcomp(scale(USArrests))
+cidsScaled <- kmeans(scale(USArrests),centers=4,nstart=10)$cluster
+plot(pcaResTmpScaled$x[,1:2],type="p",main="Scaled",col=cidsScaled)
+plot(pcaResTmpScaled$x[,1:2],type="n",main="Scaled",col=cidsScaled)
+text(pcaResTmpScaled$x[,1:2],rownames(pcaResTmpScaled$x),col=cidsScaled,pch=15+cidsScaled)
+# par(old.par)
 ```
 
 # Within-cluster sum-of-squares on USArrests
@@ -50,10 +57,15 @@ for ( k in 1:20 ) {
 }
 plot(1:20,w,type="b",lwd=2,pch=19,xlab="K", ylab=expression(SS[within]))
 
+ins_random_fun <- function(x) {
+    runif(length(x), min(x), max(x));
+}
+# debug(ins_random_fun)
+
 for ( i in 1:10 ) {
   wrnd = numeric()
   for ( k in 1:20 ) {
-    krnd = kmeans(apply(USArrests,2,function(x)runif(length(x),min(x),max(x))),k)
+    krnd = kmeans(apply(USArrests, 2, ins_random_fun), k)
     wrnd[k] = krnd$tot.withinss
   }
   points(wrnd,type="l",col="red")
@@ -101,7 +113,11 @@ plot(1:20,btw,type="b",lwd=2,pch=19,xlab="K", ylab=expression(SS[between]))
 for ( i in 1:10 ) {
   btwrnd = numeric()
   for ( k in 1:20 ) {
-    krnd = kmeans(apply(USArrests,2,function(x)runif(length(x),min(x),max(x))),k)
+    krnd = kmeans(apply(USArrests, 2, 
+                        function(x) {
+                          runif(length(x), min(x), max(x))
+                        }
+                  ), k)
     btwrnd[k] = krnd$betweenss
   }
   points(btwrnd,type="l",col="red")
@@ -114,7 +130,7 @@ for ( i in 1:10 ) {
 btw=numeric(20)
 for ( k in 1:20 ) {
  kf=kmeans(scale(USArrests),k)
- btw[k] = kf$betweenss
+ btw[k] <- kf$betweenss
 }
 plot(1:20,btw,type="b",lwd=2,pch=19,xlab="K", ylab=expression("SS[between]"),ylim=c(0,250))
 
@@ -174,7 +190,7 @@ for ( i in 1:10 ) {
   for ( k in 2:20 ) {
     krnd = kmeans(apply(scale(USArrests),2,function(x)runif(length(x),min(x),max(x))),k,nstart=10)
     chrnd[k] = (krnd$betweenss/(k-1)) / (krnd$tot.withinss/(nrow(USArrests)-k))
-    ksmpl = kmeans(apply(scale(USArrests),2,sample),k,nstart=10)
+    ksmpl = kmeans(apply(scale(USArrests), 2, sample), k, nstart=10)
     chsmpl[k] = (ksmpl$betweenss/(k-1)) / (ksmpl$tot.withinss/(nrow(USArrests)-k))
   }
   points(2:20,chrnd[-1],type="l",col="red")

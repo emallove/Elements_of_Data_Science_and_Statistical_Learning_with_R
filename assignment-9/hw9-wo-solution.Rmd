@@ -28,7 +28,8 @@ knitr::opts_chunk$set(echo = TRUE)
 > Dataset "quakes" is routinely available in R and is autoloaded by default: the following should just work without any further steps for a standard R installation:
 
 ```{r,fig.width=6,fig.height=6}
-clr <- gray((quakes$depth-min(quakes$depth))/as.vector(range(quakes$depth)%*%c(-1,1)))
+myQuakes = quakes
+clr <- gray((quakes$depth - min(quakes$depth)) / as.vector(range(quakes$depth)%*%c(-1,1)))
 plot(quakes$lat,quakes$long,col=clr)
 ```
  
@@ -84,6 +85,26 @@ for ( i in 1:10 ) {
 
 The Calinski-Harabasz (CH) index peaks at 6 clusters.
 
+
+```{r CHIndexOn_Quakes}
+chori=numeric(20)
+for ( k in 2:20 ) {
+  kf=kmeans(quakes,k,nstart=10)
+  chori[k] = (kf$betweenss/(k-1)) / (kf$tot.withinss/(nrow(quakes)-k))
+}
+plot(2:20,chori[-1],type="b", lwd=2,pch=19,xlab="K", ylab="CH index",ylim=range(chori[-1])*c(1/2,1))
+
+for ( i in 1:10 ) {
+  chrnd = numeric()
+  for ( k in 2:20 ) {
+    krnd = kmeans(apply(quakes,2,function(x)runif(length(x),min(x),max(x))),k,nstart=10, iter.max=20)
+    chrnd[k] = (krnd$betweenss/(k-1)) / (krnd$tot.withinss/(nrow(quakes)-k))
+  }
+  points(2:20,chrnd[-1],type="l",col="red")
+}
+```
+
+
 # Problem 2: gap statistics (15 points)
 
 > Using the code provided in the lecture slides for calculating gap statistics or one of its implementations available in R (e.g. `clusGap` from library `cluster`), compute and plot gap statistics for K-means clustering of the scaled WHS data for 2 through 20 clusters.  Discuss whether it indicates presence of clearly defined cluster structure in this data.
@@ -104,7 +125,9 @@ maxSE output is 3; although 10, 12, and 15 also make similar gains in Gap~k~.
 
 # Problem 3: stability of hierarchical clustering (15 points)
 
-> For numbers of clusters K=2, 3 and 4 found in the scaled WHS dataset by (1) `hclust` with Ward method (as obtained by `cutree` at corresponding levels of `k`) and (2) by K-means, compare cluster memberships between these two methods at each K and describe their concordance.  This problem is similar to the one from week 6 problem set, but this time it is *required* to: 1) use two dimensional contingency tables implemented by `table` to compare membership between two assignments of observations into clusters, and 2) programmatically re-order rows and columns in the `table` result to correctly identify the correspondence between the clusters (please see examples in lecture slides).
+> For numbers of clusters K=2, 3 and 4 found in the scaled WHS dataset by (1) `hclust` with Ward method (as obtained by `cutree` at corresponding levels of `k`) and (2) by K-means, compare cluster memberships between these two methods at each K and describe their concordance.  This problem is similar to the one from week 6 problem set, but this time it is *required* to: 
+>     1) use two dimensional contingency tables implemented by `table` to compare membership between two assignments of observations into clusters, and 
+>     2) programmatically re-order rows and columns in the `table` result to correctly identify the correspondence between the clusters (please see examples in lecture slides).
 >
 > How stable are the clusters as we wiggle parameters/rescale the data etc?
 >  Build a “contingency table” between the clustering results (i.e. count how many observations are in cluster i in one run and
@@ -116,6 +139,27 @@ maxSE output is 3; although 10, 12, and 15 also make similar gains in Gap~k~.
 >
 
 ```{r clusterStability}
+
+# REAL DATA EXAMPLE
+#  Let us consider again the NCI60 dataset introduced last week
+#  64 tumor samples, expression levels of 6380 genes are measured in each sample
+#
+
+library(ISLR)
+# data(NCI60)
+# rownames(NCI60$data)=NCI60$labs
+# why >1, and not >2 or >0.5 ?
+data.1 = whs2018annexBdat[,apply(whs2018annexBdat,2,sd)>1]
+data.1.s = scale(data.1)
+# try k-means first:
+w=numeric(20)
+for ( k in 2:20 ) {
+  kf=kmeans(data.1,k,nstart=100)
+  w[k] = (kf$betweenss / # CH index
+  (k-1))/(kf$tot.withinss/(length(kf$cluster)-k))
+}
+plot(2:20,w[-1],type="b",lwd=2,pch=19,xlab="K", ylab="CH index")
+
 matrix.sort <- function(m) {
   require(clue)
   p = solve_LSAP(m, maximum=T) # find the permutation…
@@ -123,17 +167,18 @@ matrix.sort <- function(m) {
 }
 cmp.shortcut = function(K,...) {
   matrix.sort(table(
-  FULL=kmeans(NCI60$data,K,...)$cluster,
-  SCALED.SUBSET= kmeans(data.1.s,K,...)$cluster))
+    FULL=kmeans(whs2018annexBdat,K,...)$cluster,
+    SCALED.SUBSET= kmeans(data.1.s,K,...)$cluster
+  ))
 }
 cmp.shortcut(4,nstart=100)
 
 #      SCALED.SUBSET
- # FULL 1 2  3 4
-#    1 8  0  0  0
-#    4 0  30 0  0
-#    3 0  0  9  0
-#    2 0  0  0  17
+#  FULL  1   2   3  4
+#     1  8   0   0  0
+#     4  0   30  0  0
+#     3  0   0   9  0
+#     2  0   0   0  17
 
 cmp.shortcut(5,nstart=100)
 #      SCALED.SUBSET
@@ -144,6 +189,18 @@ cmp.shortcut(5,nstart=100)
 #    5 0 0 0  9  0
 #    4 0 0 0  0  23
 
+
+```
+
+
+Use 6 clusteres since CH-index peaks at 6.
+
+## For *extra* 5 points: between/within variance in hierarchical clusters
+
+> Using functions `between` and `within` provided in the lecture slides calculate between and (total) within cluster variances for top 2 through 20 clusters defined by Ward's hierarchical clustering when applied to the scaled WHS data.  Plot the results.  Compare their behavior to that of the same statistics when obtained for K-means clustering above.
+
+
+```{r withinAndBetween}
 
 # IS HIERARCHICAL BETTER?
 #  Functions for within/between cluster variance:
@@ -176,7 +233,7 @@ between=function(d,clust) {
 #  The clear cluster structure is missing from the hierarchical clustering result as well…
 #
 
-data.1 = NCI60$data[,apply(NCI60$data,2,sd)>1]
+data.1 = whs2018annexBdat[,apply(whs2018annexBdat,2,sd)>1]
 dd.1 = dist(data.1)
 hw.1 = hclust(dd.1,method = "ward.D2")
 w.tot = numeric(9)
@@ -191,14 +248,64 @@ plot(2:10,w.tot,pch = 19,type = "b")
 plot(2:10,btw,pch = 19,type = "b")
 plot(2:10,(btw/(1:9))/
 (w.tot/(nrow(data.1)-2:10)),pch = 19,type = "b")
+
 ```
 
 
-## For *extra* 5 points: between/within variance in hierarchical clusters
-
-> Using functions `between` and `within` provided in the lecture slides calculate between and (total) within cluster variances for top 2 through 20 clusters defined by Ward's hierarchical clustering when applied to the scaled WHS data.  Plot the results.  Compare their behavior to that of the same statistics when obtained for K-means clustering above.
-
+5 clusters appears the best fit for the within / between measures (as compared to Calinski-Harabasz CH-index measures before).
 
 # Problem 4: Brute force randomization in hierarchical clustering (15 points)
 
 > Compare distribution of the heights of the clusters defined by `hclust` with Ward's clustering of Euclidean distance between countries in the scaled WHS dataset and those obtained by applying the same approach to the distances calculated on randomly permuted WHS dataset as illustrated in the lecture slides.  Discuss whether results of such brute force randomization are supportive of presence of unusually close or distant sets of observations within WHS data.
+
+
+```{r bruteForceRandomization}
+
+# BRUTE FORCE RANDOMIZATION
+#  Let us randomize expression levels across each sample and repeat clustering
+#  All the “similarities” between samples we are now observing are due to random chance
+#  What is the distribution of the distances between samples/clusters and how does it compare to the original data?
+#
+
+data.1 = whs2018annexBdat
+dd.1 = dist(data.1)
+hw.1 = hclust(dd.1,method = "ward.D2")
+
+ori.heights = hw.1$height
+rnd.heights = numeric()
+for ( i.sim in 1:100 ) {
+  data.rnd <-apply(data.1,2,sample)
+  hw.rnd=hclust(dist(data.rnd),method="ward.D2")
+  rnd.heights <- c(rnd.heights,hw.rnd$height)
+}
+plot(ori.heights,rank(ori.heights)/length(ori.heights), col="red",xlab="height",ylab="F(height)",pch=19)
+points(rnd.heights,rank(rnd.heights)/length(rnd.heights), col="blue")
+
+```
+
+
+```{r excessiveOptimismOfBruteForceRandomization}
+library("scatterplot3d")
+n <- 1000
+p <- 30
+xTmp <- matrix(runif(n),nrow=n,ncol=p)+rnorm(n*p,sd=0.01)
+xTmpRnd <- apply(xTmp,2,sample)
+old.par <- par(mfrow=c(1,2),ps=16,mar=c(5,5,3,1))
+plot(xTmp,xlab=expression(X[1]),ylab=expression(X[2]),main="Simulated data: n=1000, p=30")
+plot(xTmpRnd,xlab=expression(X[1]),ylab=expression(X[2]),main="After randomization")
+par(old.par)
+old.par <- par(mfrow=c(1,2),ps=16)
+scatterplot3d(xTmp[,1:3],xlab=expression(X[1]),ylab=expression(X[2]),zlab=expression(X[3]),main="Simulated data: n=1000, p=30")
+scatterplot3d(xTmpRnd[,1:3],xlab=expression(X[1]),ylab=expression(X[2]),zlab=expression(X[3]),main="After randomization")
+par(old.par)
+old.par <- par(mfrow=c(1,2),ps=16)
+plot(hclust(dist(xTmp)),labels=FALSE,main="Simulated data: n=1000, p=30")
+plot(hclust(dist(xTmpRnd)),labels=FALSE,main="After randomization")
+par(old.par)
+plot(ecdf(hclust(dist(xTmp))$height),xlab="Clustering height")
+points(range(hclust(dist(xTmp))$height),y=c(0,1),cex=2,lwd=2)
+plot(ecdf(hclust(dist(xTmpRnd))$height),add=TRUE,col=2)
+points(range(hclust(dist(xTmpRnd))$height),y=c(0,1),cex=2,lwd=2,col=2)
+legend("bottomright",c("Simulated","Randomized"),col=1:2,text.col=1:2,bty="n",pch=1,pt.cex=2,pt.lwd=2,lty=1)
+
+```

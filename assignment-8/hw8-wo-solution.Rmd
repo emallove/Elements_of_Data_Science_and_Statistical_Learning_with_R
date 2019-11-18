@@ -117,30 +117,8 @@ myCov = cov(apply(whs2018annexBdat, 2, log))
 myCor = cor(apply(whs2018annexBdat, 2, log))
 myVar = var(apply(whs2018annexBdat, 2, log))
 
-# symnum(myCov)
 symnum(myCor)
-# symnum(myVar)
 
-# hist(myVars, breaks = 36, labels = TRUE)
-
-################################################################################
-# Example from lecture
-################################################################################
-# x = -100:100
-# y = 0.8 * x
-# x = (x + 10 * rnorm(length(x))) / 100
-# y = (y + 10 * rnorm(length(y))) / 100
-# plot(x,y,pch=19, cex=0.7)
-# cov(x,y);
-# cor(x,y);
-# # [1] 0.2650011
-# # [1] 0.9614664
-# # we can also calculate covariance manually:
-# sum((x-mean (x) ) * (y-mean(y))) / (length(x)-1)
-# [1] 0.2650011
-################################################################################
-# End: Example from lecture
-################################################################################
 ```
 
 ## Sub-problem 1b: PCA on untransformed and scaled WHS data (20 points)
@@ -229,34 +207,6 @@ stack(tail(sort(apply(whs2018annexBdat , 2, var))))
 >    principal components (PCs).  You can find an example of doing this in ISLR
 >    Chapter 10.4 (Lab 1 on PCA).
 
-```{r ch10.4-lab1}
-# 10.4 Lab 1: Principal Components Analysis
-# In this lab, we perform PCA on the USArrests data set, which is part of
-# the base R package. The rows of the data set contain the 50 states, in
-# alphabetical order.
-states=row.names(USArrests )
-states
-# The columns of the data set contain the four variables.
-names(USArrests )
-# [1] "Murder" "Assault " "UrbanPop " "Rape"
-# We first briefly examine the data. We notice that the variables have vastly
-# different means.
-apply(USArrests , 2, mean)
-# Murder Assault UrbanPop Rape
-# 7.79 170.76 65.54 21.23
-
-# Note that the `apply()` function allows us to apply a function—in this case,
-# the `mean()` function—to each row or column of the data set. The second
-# input here denotes whether we wish to compute the mean of the rows, 1,
-# or the columns, 2. We see that there are on average three times as many
-# rapes as murders, and more than eight times as many assaults as rapes.
-# We can also examine the variances of the four variables using the `apply()`
-# function.
-apply(USArrests , 2, var)
-# Murder Assault UrbanPop Rape
-# 19.0 6945.2 209.5 87.7
-```
-
 > Now that you have PCA results when applied to untransformed and scaled WHS
 > data, please comment on how do they compare and what is the effect of
 > scaling?  What dataset attributes contribute the most (by absolute value) to
@@ -316,12 +266,19 @@ the Western nations.
 > input data.  Describe the results.  Which countries are clustered together
 > for each of these choices of $K$?
 
-```{r kmeans}
-whs2018annexBdat_prcomp <- prcomp(whs2018annexBdat)$x[select_countries,1:2]
-plot(whs2018annexBdat_prcomp,col=kmeans(whs2018annexBdat,2)$cluster)
-text(whs2018annexBdat_prcomp,col=kmeans(whs2018annexBdat,2)$cluster, labels = rownames(whs2018annexBdat_prcomp), cex=0.5)
-plot(prcomp(whs2018annexBdat)$x[,1:2],col=kmeans(whs2018annexBdat,3)$cluster)
-plot(prcomp(whs2018annexBdat)$x[,1:2],col=kmeans(whs2018annexBdat,4)$cluster)
+```{r kmeans2a}
+whs2018annexBdat_prcomp <- prcomp(whs2018annexBdat)$x[,1:2]
+
+plot(whs2018annexBdat_prcomp,col=kmeans(whs2018annexBdat, centers = 2)$cluster)
+text(whs2018annexBdat_prcomp,col=kmeans(whs2018annexBdat, centers = 2)$cluster, labels = rownames(whs2018annexBdat_prcomp), cex=0.5)
+
+plot(whs2018annexBdat_prcomp,col=kmeans(whs2018annexBdat, centers = 3)$cluster)
+text(whs2018annexBdat_prcomp,col=kmeans(whs2018annexBdat, centers = 3)$cluster, labels = rownames(whs2018annexBdat_prcomp), cex=0.5)
+
+plot(whs2018annexBdat_prcomp,col=kmeans(whs2018annexBdat, centers = 4)$cluster)
+text(whs2018annexBdat_prcomp,col=kmeans(whs2018annexBdat, centers = 4)$cluster, labels = rownames(whs2018annexBdat_prcomp), cex=0.5)
+
+# pdf("means-vs-variances.pdf")
 
 ```
 
@@ -346,19 +303,10 @@ plot(prcomp(whs2018annexBdat)$x[,1:2],col=kmeans(whs2018annexBdat,4)$cluster)
 > within to between sum-of-squares for each of these three k-means clustering
 > results (with random seeds of 1, 2 and 3)?
 
-```{r kmeans}
+```{r kmeans2b}
 
-# dev.off()
 graphics.off()
 par(fin=c(5,4), mar=c(0,0,0,0))
-# par()
-
-# set.seed(1)
-# k1 <- kmeans(whs2018annexBdat, centers=4, iter.max = 10, nstart = 1, algorithm = c("Hartigan-Wong", "Lloyd", "Forgy", "MacQueen"), trace=FALSE)
-# set.seed(2)
-# k2 <- kmeans(whs2018annexBdat, centers=4, iter.max = 10, nstart = 1, algorithm = c("Hartigan-Wong", "Lloyd", "Forgy", "MacQueen"), trace=FALSE)
-# set.seed(3)
-# k3 <- kmeans(whs2018annexBdat, centers=4, iter.max = 10, nstart = 1, algorithm = c("Hartigan-Wong", "Lloyd", "Forgy", "MacQueen"), trace=FALSE)
 
 library(cluster)
 library(fpc)
@@ -375,28 +323,9 @@ for (seed in 1:3) {
                          "\nbetweenss: ", km$betweenss))
 }
 
-for (seed in 1:3) {
- 
-  # set.seed(seed)
-}
-
 # Prettier plot
-set.seed(1)
 km <- kmeans(whs2018annexBdat, centers = 4, nstart = 1)
 fviz_cluster(km, whs2018annexBdat, labelsize = 5)
-set.seed(2)
-# km <- kmeans(whs2018annexBdat, centers = 4, nstart = 1)
-# fviz_cluster(km, whs2018annexBdat, labelsize = 5)
-# set.seed(3)
-# km <- kmeans(whs2018annexBdat, centers = 4, nstart = 1)
-# fviz_cluster(km, whs2018annexBdat, labelsize = 5)
-  
-# FIXME: Error: Figure margins are too large
-# plot(whs2018annexBdat, col = k1$cluster, mar=c(0,0,0,0))
-# points(k1$center, col=1:2, pch=8,cex=1)
-
-# plot(k2)
-# plot(k3)
 
 ```
 
@@ -420,6 +349,31 @@ set.seed(2)
 > results for each combination of `nstart` and RNG seed value.
 
 
+```{r kmeansNstart100}
+
+graphics.off()
+par(fin=c(5,4), mar=c(0,0,0,0))
+
+for (seed in 1:3) {
+ 
+  set.seed(seed)
+  km <- kmeans(whs2018annexBdat, centers = 4, nstart = 100)
+  clusplot(whs2018annexBdat, km$cluster, color=TRUE, shade=T,   lines=0, labels=5)
+  print_output(cat(seed, "\nwithinss: ", km$tot.withinss,
+                         "\nbetweenss: ", km$betweenss))
+}
+
+# Prettier plot
+set.seed(4)
+km <- kmeans(whs2018annexBdat, centers = 4, nstart = 1)
+fviz_cluster(km, whs2018annexBdat, labelsize = 5)
+set.seed(5)
+km <- kmeans(whs2018annexBdat, centers = 4, nstart = 100)
+fviz_cluster(km, whs2018annexBdat, labelsize = 5)
+
+```
+
+
 # Problem 3: Hierarchical clustering (15 points)
 
 ## Sub-problem 3a: hierachical clustering by different linkages (10 points)
@@ -432,6 +386,25 @@ set.seed(2)
 > discuss the impact of the scaling on the outcome of hierarchical clustering.
 
 
+```{r hclust}
+
+pdf("hclust-with-ward-single-complete-and-average-method.pdf")
+# par(fin=c(7.2,4))
+for (m in c("ward.D", "single", "complete", "average")) {
+  d <- dist(whs2018annexBdat)   # find distance matrix 
+  hc <- hclust(d, method=m)               # apply hirarchical clustering 
+  plot(hc, cex=0.3)   
+}
+
+
+```
+
+
+Indonensia, Ethiopia, Nigeria, and Phillipines are in the marginal clusters with 
+large height values -- they are easiest to notice shifts when switching
+between the different clustering methods. The main (low-height value) clusters
+are very large and hard to differentiate between methods.
+
 ## Sub-problem 3b: compare k-means and hierarchical clustering (5 points)
 
 > Using function `cutree` on the output of `hclust` determine assignment of the
@@ -441,3 +414,23 @@ set.seed(2)
 > to compare membership of these clusters to those produced by k-means
 > clustering with four clusters in the Problem 2(b) when using `nstart=100`
 > (and any of the RNG seeds) above.  Discuss the results.
+
+#### hclust cutree table
+
+```{r cutree}
+
+hc <- hclust(d, method="ward.D")
+stack(sort(cutree(hc, k = 4)))
+grp <- cutree(hc, k = 4)
+table(grp)
+```
+
+#### K-means table
+
+```{r kmeansTable}
+set.seed(1133)
+km <- kmeans(whs2018annexBdat, centers = 4, nstart = 100)
+table(km$cluster)
+```
+
+Cluster sizes are similar between k-means and hierarchical clustering (`hclust`)
