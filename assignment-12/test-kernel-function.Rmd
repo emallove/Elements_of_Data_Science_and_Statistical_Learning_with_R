@@ -1,0 +1,10 @@
+---
+title: "test-kernel-function"
+author: "Ethan Mallove"
+date: "11/21/2019"
+output: html_document
+---
+
+```{r cars}
+plot(log((exp(-10 * (runif(100, 0, 100) - runif(100, 0, 100)) ^ 2))))
+```
