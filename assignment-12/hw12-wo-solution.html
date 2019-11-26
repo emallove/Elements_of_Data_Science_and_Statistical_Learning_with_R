@@ -420,7 +420,7 @@ dim(wifiLocDat)</code></pre>
 <div id="problem-1-20-points-support-vector-classifier-i.e.using-linear-kernel" class="section level1">
 <h1>Problem 1 (20 points): support vector classifier (i.e. using linear kernel)</h1>
 <blockquote>
-<p>Use <code>svm</code> from library <code>e1071</code> with <code>kernel=&quot;linear&quot;</code> to fit classifier (e.g. ISLR Ch.9.6.1) to the entire WiFi localization dataset setting parameter <code>cost</code> to 0.001, 1, 1000 and 1 mln. Describe how this change in parameter <code>cost</code> affects model fitting process (hint: the difficulty of the underlying optimization problem increases with cost – can you explain what drives it?) and its outcome (how does the number of support vectors change with <code>cost</code>?) and what are the implications of that. Explain why change in <code>cost</code> value impacts number of support vectors found. (Hint: there is an answer in ISLR.)</p>
+<p>Use <code>svm</code> from library <code>e1071</code> with <code>kernel=&quot;linear&quot;</code> to fit classifier (e.g. ISLR Ch.9.6.1) to the entire WiFi localization dataset setting parameter <code>cost</code> to 0.001, 1, 1000 and 1 mln.</p>
 </blockquote>
 <pre class="r"><code># cost=10, no scaling this time:
 
@@ -568,8 +568,89 @@ for (costVal in  c(0.001, 1, 1000, 1000000)) {
 ##   FALSE   387    5
 ##   TRUE   1113  495</code></pre>
 <blockquote>
+<p>Describe how this change in parameter <code>cost</code> affects model fitting process (hint: the difficulty of the underlying optimization problem increases with cost – can you explain what drives it?) and its outcome (how does the number of support vectors change with <code>cost</code>?) and what are the implications of that.</p>
+</blockquote>
+<p>The algorithm is given another alternative (programmtically, this can create another if-else-branch) – since it will now weigh the benefits of including or excluding data points near the dividing line.</p>
+<blockquote>
+<p>Explain why change in <code>cost</code> value impacts number of support vectors found. (Hint: there is an answer in ISLR.)</p>
+</blockquote>
+<p>The number of support vectors (misclassifications and points in the margin) decrease as cost increases. Page 347 in ISLR succinctly explains the reason for this: <em>When the tuning parameter C is large, then the margin is wide, many observations violate the margin, and so there are many support vectors</em>.</p>
+<blockquote>
 <p>Use <code>tune</code> function from library <code>e1071</code> (see ISLR Ch.9.6.1 for details and examples of usage) to determine approximate value of cost (in the range between 0.1 and 100 – the suggested range spanning ordes of magnitude should hint that the density of the grid should be approximately logarithmic – e.g. 1, 3, 10, … or 1, 2, 5, 10, … etc.) that yields the lowest error in cross-validation employed by <code>tune</code>. Setup a resampling procedure repeatedly splitting entire dataset into training and test, using training data to <code>tune</code> cost value and test dataset to estimate classification error. Report and discuss distributions of test errors from this procedure and selected values of <code>cost</code>.</p>
 </blockquote>
+<pre class="r"><code># tune cost by cross-validation:
+set.seed(1)
+tune.out &lt;- tune(svm, Loc3~., data=wifiLocDat, kernel=&quot;linear&quot;, ranges=list(cost=c(0.001, 0.01, 0.1, 1, 5, 10, 100)))
+#tune.out &lt;- tune(svm, Loc3~., data=wifiLocDat, kernel=&quot;linear&quot;, ranges=list(cost=c(0.001, 0.01, 0.1)))
+# cost=0.1 is the best:
+summary(tune.out)</code></pre>
+<pre><code>## 
+## Parameter tuning of 'svm':
+## 
+## - sampling method: 10-fold cross validation 
+## 
+## - best parameters:
+##  cost
+##     5
+## 
+## - best performance: 0.229 
+## 
+## - Detailed performance results:
+##    cost  error dispersion
+## 1 1e-03 0.2500 0.03223180
+## 2 1e-02 0.2500 0.03223180
+## 3 1e-01 0.2515 0.03064583
+## 4 1e+00 0.2305 0.04387166
+## 5 5e+00 0.2290 0.04376706
+## 6 1e+01 0.2295 0.04278175
+## 7 1e+02 0.2300 0.04314060</code></pre>
+<pre class="r"><code># best model:
+bestmod &lt;- tune.out$best.model
+summary(bestmod)</code></pre>
+<pre><code>## 
+## Call:
+## best.tune(method = svm, train.x = Loc3 ~ ., data = wifiLocDat, 
+##     ranges = list(cost = c(0.001, 0.01, 0.1, 1, 5, 10, 100)), 
+##     kernel = &quot;linear&quot;)
+## 
+## 
+## Parameters:
+##    SVM-Type:  C-classification 
+##  SVM-Kernel:  linear 
+##        cost:  5 
+## 
+## Number of Support Vectors:  999
+## 
+##  ( 500 499 )
+## 
+## 
+## Number of Classes:  2 
+## 
+## Levels: 
+##  FALSE TRUE</code></pre>
+<pre class="r"><code># denser grid around minimum:
+tune.out.1 &lt;- tune(svm, Loc3~., data=wifiLocDat, kernel=&quot;linear&quot;, ranges=list(cost=c(0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1)))
+summary(tune.out.1)</code></pre>
+<pre><code>## 
+## Parameter tuning of 'svm':
+## 
+## - sampling method: 10-fold cross validation 
+## 
+## - best parameters:
+##  cost
+##   0.5
+## 
+## - best performance: 0.2345 
+## 
+## - Detailed performance results:
+##   cost  error dispersion
+## 1 0.01 0.2500 0.02708013
+## 2 0.02 0.2500 0.02708013
+## 3 0.05 0.2500 0.02708013
+## 4 0.10 0.2505 0.02753281
+## 5 0.20 0.2410 0.03142893
+## 6 0.50 0.2345 0.03295199
+## 7 1.00 0.2345 0.03201128</code></pre>
 </div>
 <div id="problem-2-10-points-comparison-to-random-forest" class="section level1">
 <h1>Problem 2 (10 points): comparison to random forest</h1>

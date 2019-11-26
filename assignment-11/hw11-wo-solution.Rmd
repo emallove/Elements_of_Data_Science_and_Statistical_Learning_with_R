@@ -186,7 +186,7 @@ ggplot_Lda_Rf_Knn(err, dfTmp, ldaTmpTbl, rfTmpTbl, titleArg)
 
 # Sub-problem 1 (15 points): effect of sample size
 
-> Generate training datasets with `nObs=25`, `100` and `500` observations such that two variables are associated with the outcome as parameterized above and three are not associated and average difference between the two classes is the same as above (i.e. in the notation from the above code `nClassVars=2`, `nNoiseVars=3` and `deltaClass=1`).  Obtain random forest, LDA and KNN test error rates on a (for greater stability of the results, much larger, say, with 10K observations) test dataset simulated from the same model.  Describe the differences between different methods and across the sample sizes used here.
+> Generate training datasets with `nObs=25`, `100` and `500` observations such that two variables are associated with the outcome as parameterized above and three are not associated and average difference between the two classes is the same as above (i.e. in the notation from the above code `nClassVars=2`, `nNoiseVars=3` and `deltaClass=1`).  Obtain random forest, LDA and KNN test error rates on a (for greater stability of the results, much larger, say, with 10K observations) test dataset simulated from the same model.  
 
 ```{r trainAndTest}
 gtd <- getTestData(1000, 2, 3, 1)
@@ -234,9 +234,18 @@ for (nObs in c(25, 100, 500)) {
 }
 ```
 
+>
+> Describe the differences between different methods and across the sample sizes used here.
+
+Increasing the number of observations has the following effect on error rate:
+
+ * Random Forest benfits the most - undergoing a 20% improvement (from 25 to 500 observations)
+ * LDA's error rate benefits the least
+ * KNN shows slight 5-10% improvement
+
 # Sub-problem 2 (15 points): effect of signal magnitude
 
-> For training datasets with `nObs=100` and `500` observations simulate data as shown above with average differences between the two classes that are same as above, half of that and twice that (i.e. `deltaClass=0.5`, `1` and `2`).  Obtain and plot test error rates of random forest, LDA and KNN for each of the six (two samples sizes times three signal magnitudes) combinations of sample size and signal strengths.  As before use large test dataset (e.g. 10K observations or so) for greater stability of the results.  Describe the most pronounced differences across error rates for those datasets: does the increase in the number of observations impact the error rate of the models?  Does change in the magnitude of signal impact their performance?  Are different classifier approaches impacted in a similar way?
+> For training datasets with `nObs=100` and `500` observations simulate data as shown above with average differences between the two classes that are same as above, half of that and twice that (i.e. `deltaClass=0.5`, `1` and `2`).  Obtain and plot test error rates of random forest, LDA and KNN for each of the six (two samples sizes times three signal magnitudes) combinations of sample size and signal strengths.  As before use large test dataset (e.g. 10K observations or so) for greater stability of the results.  
 
 
 ```{r effectOfSignalMagnitude}
@@ -249,12 +258,71 @@ for (deltaClass in c(0.5, 1, 2)) {
 
 ```
 
+> Describe the most pronounced differences across error rates for those datasets: does the increase in the number of observations impact the error rate of the models?
+
+Increasing the number of observations has the following effect on error rate:
+
+ * Random Forest and KNN see significant benfits - undergoing a 40% improvement (from 25 to 500 observations)
+ * LDA's error rate benefits the least - staying at 50%
+
+> Does change in the magnitude of signal impact their performance?
+
+
+
+> Are different classifier approaches impacted in a similar way?
+
+
+
 # Sub-problem 3 (15 points): varying counts of predictors
 
-> For all possible pairwise combinations of the numbers of variables associated with outcome (`nClassVars=2` and `5`) and those not associated with the outcome (`nNoiseVars=1`, `3` and `10`) -- six pairwise combinations in total -- obtain and present graphically test errors from random forest, LDA and KNN.  Choose signal magnitude (`deltaClass`) and training data sample size so that this simulation yields non-trivial results -- noticeable variability in the error rates across those six pairwise combinations of attribute counts.  Describe the results: what is the impact of the increase of the number of attributes associated with the outcome on the classifier performance?  What about the number of attributes not associated with outcome - does it affect classifier error rate?  Are different classifier methods affected by these simulation parameters in a similar way?
+> For all possible pairwise combinations of the numbers of variables associated with outcome (`nClassVars=2` and `5`) and those not associated with the outcome (`nNoiseVars=1`, `3` and `10`) -- six pairwise combinations in total -- obtain and present graphically test errors from random forest, LDA and KNN.  Choose signal magnitude (`deltaClass`) and training data sample size so that this simulation yields non-trivial results -- noticeable variability in the error rates across those six pairwise combinations of attribute counts.  
+
+
+
+```{r varyingCountsOfPredictors}
+
+for (classVarsArg in c(2, 5)) {
+  for (noiseVarsArg in c(1, 3, 10)) {
+    nTrainObs = 500
+    nDeltaClass = 1
+    compare_LDA_KNN_RandomForest(nTrainObs, nClassVarsArg = classVarsArg, nNoiseVarsArg = noiseVarsArg, deltaClassArg = nDeltaClass)
+  }
+}
+
+```
+> Describe the results: what is the impact of the increase of the number of attributes associated with the outcome on the classifier performance?
+
+
+
+> What about the number of attributes not associated with outcome - does it affect classifier error rate?
+
+
+
+> Are different classifier methods affected by these simulation parameters in a similar way?
+
+No. LDA - for example - is *stuck* at 50% with no loss or penalty, while the others vary with parameter changes.
+
+Random Forest is _bothered_ by the noise increases from 5 to 10 (losing 10% accuracy)
+
 
 # Sub-problem 4: (15 points): effect of `mtry`
 
-> Parameter `mtry` in the call to `randomForest` defines the number of predictors randomly chosen to be evaluated for their association with the outcome at each split (please see help page for `randomForest` for more details).  By default for classification problem it is set as a square root of the number of predictors in the dataset.  Here we will evaluate the impact of using different values of `mtry` on the error rate by random forest.
+> Parameter `mtry` in the call to `randomForest` defines the number of predictors randomly chosen to be evaluated for their association with the outcome at each split (please see help page for `randomForest` for more details). By default for classification problem it is set as a square root of the number of predictors in the dataset.  Here we will evaluate the impact of using different values of `mtry` on the error rate by random forest.
 
 > For `nObs=5000`, `deltaClass=2`, `nClassVars=3` and `nNoiseVars=20` generate data using the above approach, run `randomForest` on it with `mtry=2`, `5` and `10` and obtain corresponding test error for these three models.  Describe the impact of using different values of `mtry` on the test error rate by random forest and compare it to that by LDA/KNN. 
+
+```{r effectOfMTry}
+
+# Modify getRfTmpTable so that we can iterate over `mtry` attribute
+getRfTmpTable <- function(xyzTest, xyzTrain, classTest, classTrain) {
+  rfRes <- randomForest(xyzTrain, classTrain, mtry=mTryVal)
+  rfTmpTbl <- table(classTest, predict(rfRes, newdata=xyzTest))
+  return (rfTmpTbl)
+}
+
+for (mTryVal in c(2, 5, 10)) {
+  compare_LDA_KNN_RandomForest(5000, nClassVarsArg = 3, nNoiseVarsArg = 20, deltaClassArg = 2)
+}
+
+```
+
