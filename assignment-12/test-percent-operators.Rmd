@@ -1,0 +1,17 @@
+---
+title: "test-percent-operators"
+author: "Ethan Mallove"
+date: "11/26/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library("knitr")
+
+```
+
+```{r cars}
+c(1, 2, 3) %notin% c(3, 4, 5)
+```

@@ -109,7 +109,7 @@ nObs <- length(wifiLocDat[,"Loc3"])
 randomIndices <- sample(1:nObs, floor(nObs/2))
 
 # Get indices not in randomIndices
-randomIndicesInverse <- which(seq(1:nObs) %notin% randomIndices)
+randomIndicesInverse <- setdiff(seq(1:nObs), randomIndices)
 
 xyzTrain <- wifiLocDat[randomIndices       , ]
 xyzTest  <- wifiLocDat[randomIndicesInverse, ]
@@ -207,14 +207,12 @@ Increasing `gamma` tightens the magenta area.
 
 ## Sub-problem 4b (10 points): test error for SVM with radial kernel
 
-> Similar to how it was done above for support vector classifier (and KNN), set up a resampling process that will repeatedly: a) split the entire dataset (using all attributes as predictors) into training and test datasets, b) use `tune` function to determine optimal values of `cost` and `gamma` and c) calculate test error using these values of `cost` and `gamma`.  Consider what you have learned above about the effects of the parameters `cost` and `gamma` to decide on the starting ranges of their values to be evaluated by `tune`. Additionally, experiment with different sets of their values and discuss in your solution the results of it and how you would go about selecting those ranges starting from scratch.  Present resulting test error graphically, compare it to that of support vector classifier (with linear kernel), random forest and KNN classifiers obtained above and discuss results of these comparisons. 
+> Similar to how it was done above for support vector classifier (and KNN), set up a resampling process that will repeatedly: a) split the entire dataset (using all attributes as predictors) into training and test datasets, b) use `tune` function to determine optimal values of `cost` and `gamma` and c) calculate test error using these values of `cost` and `gamma`.    
 
 
-```{r SvmWithRadialKernel}
+```{r SvmWithRadialKernel2}
 
-
-# EAM: increase tries to 5
-for ( iTry in 1:1 ) {
+for ( iTry in 1:5 ) {
  
   nObs <- length(wifiLocDat[,"Loc3"])
  
@@ -222,21 +220,45 @@ for ( iTry in 1:1 ) {
   randomIndices <- sample(1:nObs, floor(nObs/2))
  
   # Get indices not in randomIndices
-  randomIndicesInverse <- which(seq(1:nObs) %notin% randomIndices)
+  randomIndicesInverse <- setdiff(seq(1:nObs), randomIndices)
  
   xyzTrain <- wifiLocDat[randomIndices, ]
+  xyzTest  <- wifiLocDat[randomIndicesInverse, ]
 
   tune.out=tune(svm, Loc3~., data=xyzTrain, kernel="radial",ranges=list(cost=c(5,10,20,50,100,200), gamma=c(0,0.5,1,1.5,2)))
  
   print(tune.out$best.parameters)
   print(tune.out$best.performance)
   
-  # Use parameters in training+tune step on the test data
-  # xyzTest  <- wifiLocDat[randomIndicesInverse, ]
+  print(sprintf("tune() finds the following best parameters: cost = %f, gamma = %f",
+          tune.out$best.parameters$cost,
+          tune.out$best.parameters$gamma)
+  )
   
+  # Use the optimal parameters found in tune (see above) to run our test
+  svmRes <- svm(xyzTrain[,1:7], xyzTrain[,8], cost=tune.out$best.parameters$cost, gamma=tune.out$best.parameters$gamma)
+  svmTmpTbl <- table(xyzTest[,8], predict(svmRes, newdata=xyzTest[,1:7]))
+  print(svmTmpTbl)  
   
+  errRate <- 1-sum(diag(svmTmpTbl)) / sum(svmTmpTbl)
+  print(sprintf("Error rate: %f", errRate))
 }
 ```
+
+
+> Consider what you have learned above about the effects of the parameters `cost` and `gamma` to decide on the starting ranges of their values to be evaluated by `tune`. 
+
+I've passed the followign ranges of `cost` and `gamma` to `tune()`:
+  cost  = c(5, 10, 20, 50, 100, 200)
+  gamma = c(0, 0.5, 1, 1.5, 2)
+ 
+`tune()` has selected 0.5 for gamma; and 5, 10, or 20 for cost -- achieving an error rate in the range 0.16 - 0.27.
+
+> Additionally, experiment with different sets of their values and discuss in your solution the results of it and how you would go about selecting those ranges starting from scratch.
+
+
+> Present resulting test error graphically, compare it to that of support vector classifier (with linear kernel), random forest and KNN classifiers obtained above and discuss results of these comparisons. 
+
 
 # Extra 5 points problem: SVM with polynomial kernel
 
