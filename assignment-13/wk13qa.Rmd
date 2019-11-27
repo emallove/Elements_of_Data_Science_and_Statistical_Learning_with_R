@@ -1,0 +1,544 @@
+---
+title: "CSCI-E63C: Week 13 Q&A section"
+output:
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+ptStart <- proc.time()
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Questions
+
+* previous lectures, homeworks
+* this week quiz
+* this week assignment
+
+# Override plot.nn
+
+```{r, echo=FALSE}
+# override plot.nn so that it doesn't open new devide when plotting:
+library(grid)
+plot.nn <-
+function (x, rep = NULL, x.entry = NULL, x.out = NULL, radius = 0.15, 
+    arrow.length = 0.2, intercept = TRUE, intercept.factor = 0.4, 
+    information = TRUE, information.pos = 0.1, col.entry.synapse = "black", 
+    col.entry = "black", col.hidden = "black", col.hidden.synapse = "black", 
+    col.out = "black", col.out.synapse = "black", col.intercept = "blue", 
+    fontsize = 12, dimension = 6, show.weights = TRUE, file = NULL, 
+    ...) 
+{
+    net <- x
+    if (is.null(net$weights)) 
+        stop("weights were not calculated")
+    if (!is.null(file) && !is.character(file)) 
+        stop("'file' must be a string")
+    if (is.null(rep)) {
+        for (i in 1:length(net$weights)) {
+            if (!is.null(file)) 
+                file.rep <- paste(file, ".", i, sep = "")
+            else file.rep <- NULL
+            #dev.new()
+            plot.nn(net, rep = i, x.entry, x.out, radius, arrow.length, 
+                intercept, intercept.factor, information, information.pos, 
+                col.entry.synapse, col.entry, col.hidden, col.hidden.synapse, 
+                col.out, col.out.synapse, col.intercept, fontsize, 
+                dimension, show.weights, file.rep, ...)
+        }
+    }
+    else {
+        if (is.character(file) && file.exists(file)) 
+            stop(sprintf("%s already exists", sQuote(file)))
+        result.matrix <- t(net$result.matrix)
+        if (rep == "best") 
+            rep <- as.integer(which.min(result.matrix[, "error"]))
+        if (rep > length(net$weights)) 
+            stop("'rep' does not exist")
+        weights <- net$weights[[rep]]
+        if (is.null(x.entry)) 
+            x.entry <- 0.5 - (arrow.length/2) * length(weights)
+        if (is.null(x.out)) 
+            x.out <- 0.5 + (arrow.length/2) * length(weights)
+        width <- max(x.out - x.entry + 0.2, 0.8) * 8
+        radius <- radius/dimension
+        entry.label <- net$model.list$variables
+        out.label <- net$model.list$response
+        neuron.count <- array(0, length(weights) + 1)
+        neuron.count[1] <- nrow(weights[[1]]) - 1
+        neuron.count[2] <- ncol(weights[[1]])
+        x.position <- array(0, length(weights) + 1)
+        x.position[1] <- x.entry
+        x.position[length(weights) + 1] <- x.out
+        if (length(weights) > 1) 
+            for (i in 2:length(weights)) {
+                neuron.count[i + 1] <- ncol(weights[[i]])
+                x.position[i] <- x.entry + (i - 1) * (x.out - 
+                  x.entry)/length(weights)
+            }
+        y.step <- 1/(neuron.count + 1)
+        y.position <- array(0, length(weights) + 1)
+        y.intercept <- 1 - 2 * radius
+        information.pos <- min(min(y.step) - 0.1, 0.2)
+        if (length(entry.label) != neuron.count[1]) {
+            if (length(entry.label) < neuron.count[1]) {
+                tmp <- NULL
+                for (i in 1:(neuron.count[1] - length(entry.label))) {
+                  tmp <- c(tmp, "no name")
+                }
+                entry.label <- c(entry.label, tmp)
+            }
+        }
+        if (length(out.label) != neuron.count[length(neuron.count)]) {
+            if (length(out.label) < neuron.count[length(neuron.count)]) {
+                tmp <- NULL
+                for (i in 1:(neuron.count[length(neuron.count)] - 
+                  length(out.label))) {
+                  tmp <- c(tmp, "no name")
+                }
+                out.label <- c(out.label, tmp)
+            }
+        }
+        grid.newpage()
+        pushViewport(viewport(name = "plot.area", width = unit(dimension, 
+            "inches"), height = unit(dimension, "inches")))
+        for (k in 1:length(weights)) {
+            for (i in 1:neuron.count[k]) {
+                y.position[k] <- y.position[k] + y.step[k]
+                y.tmp <- 0
+                for (j in 1:neuron.count[k + 1]) {
+                  y.tmp <- y.tmp + y.step[k + 1]
+                  result <- calculate.delta(c(x.position[k], 
+                    x.position[k + 1]), c(y.position[k], y.tmp), 
+                    radius)
+                  x <- c(x.position[k], x.position[k + 1] - result[1])
+                  y <- c(y.position[k], y.tmp + result[2])
+                  grid.lines(x = x, y = y, arrow = arrow(length = unit(0.15, 
+                    "cm"), type = "closed"), gp = gpar(fill = col.hidden.synapse, 
+                    col = col.hidden.synapse, ...))
+                  if (show.weights) 
+                    draw.text(label = weights[[k]][neuron.count[k] - 
+                      i + 2, neuron.count[k + 1] - j + 1], x = c(x.position[k], 
+                      x.position[k + 1]), y = c(y.position[k], 
+                      y.tmp), xy.null = 1.25 * result, color = col.hidden.synapse, 
+                      fontsize = fontsize - 2, ...)
+                }
+                if (k == 1) {
+                  grid.lines(x = c((x.position[1] - arrow.length), 
+                    x.position[1] - radius), y = y.position[k], 
+                    arrow = arrow(length = unit(0.15, "cm"), 
+                      type = "closed"), gp = gpar(fill = col.entry.synapse, 
+                      col = col.entry.synapse, ...))
+                  draw.text(label = entry.label[(neuron.count[1] + 
+                    1) - i], x = c((x.position - arrow.length), 
+                    x.position[1] - radius), y = c(y.position[k], 
+                    y.position[k]), xy.null = c(0, 0), color = col.entry.synapse, 
+                    fontsize = fontsize, ...)
+                  grid.circle(x = x.position[k], y = y.position[k], 
+                    r = radius, gp = gpar(fill = "white", col = col.entry, 
+                      ...))
+                }
+                else {
+                  grid.circle(x = x.position[k], y = y.position[k], 
+                    r = radius, gp = gpar(fill = "white", col = col.hidden, 
+                      ...))
+                }
+            }
+        }
+        out <- length(neuron.count)
+        for (i in 1:neuron.count[out]) {
+            y.position[out] <- y.position[out] + y.step[out]
+            grid.lines(x = c(x.position[out] + radius, x.position[out] + 
+                arrow.length), y = y.position[out], arrow = arrow(length = unit(0.15, 
+                "cm"), type = "closed"), gp = gpar(fill = col.out.synapse, 
+                col = col.out.synapse, ...))
+            draw.text(label = out.label[(neuron.count[out] + 
+                1) - i], x = c((x.position[out] + radius), x.position[out] + 
+                arrow.length), y = c(y.position[out], y.position[out]), 
+                xy.null = c(0, 0), color = col.out.synapse, fontsize = fontsize, 
+                ...)
+            grid.circle(x = x.position[out], y = y.position[out], 
+                r = radius, gp = gpar(fill = "white", col = col.out, 
+                  ...))
+        }
+        if (intercept) {
+            for (k in 1:length(weights)) {
+                y.tmp <- 0
+                x.intercept <- (x.position[k + 1] - x.position[k]) * 
+                  intercept.factor + x.position[k]
+                for (i in 1:neuron.count[k + 1]) {
+                  y.tmp <- y.tmp + y.step[k + 1]
+                  result <- calculate.delta(c(x.intercept, x.position[k + 
+                    1]), c(y.intercept, y.tmp), radius)
+                  x <- c(x.intercept, x.position[k + 1] - result[1])
+                  y <- c(y.intercept, y.tmp + result[2])
+                  grid.lines(x = x, y = y, arrow = arrow(length = unit(0.15, 
+                    "cm"), type = "closed"), gp = gpar(fill = col.intercept, 
+                    col = col.intercept, ...))
+                  xy.null <- cbind(x.position[k + 1] - x.intercept - 
+                    2 * result[1], -(y.tmp - y.intercept + 2 * 
+                    result[2]))
+                  if (show.weights) 
+                    draw.text(label = weights[[k]][1, neuron.count[k + 
+                      1] - i + 1], x = c(x.intercept, x.position[k + 
+                      1]), y = c(y.intercept, y.tmp), xy.null = xy.null, 
+                      color = col.intercept, alignment = c("right", 
+                        "bottom"), fontsize = fontsize - 2, ...)
+                }
+                grid.circle(x = x.intercept, y = y.intercept, 
+                  r = radius, gp = gpar(fill = "white", col = col.intercept, 
+                    ...))
+                grid.text(1, x = x.intercept, y = y.intercept, 
+                  gp = gpar(col = col.intercept, ...))
+            }
+        }
+        if (information) 
+            grid.text(paste("Error: ", round(result.matrix[rep, 
+                "error"], 6), "   Steps: ", result.matrix[rep, 
+                "steps"], sep = ""), x = 0.5, y = information.pos, 
+                just = "bottom", gp = gpar(fontsize = fontsize + 
+                  2, ...))
+        popViewport()
+        if (!is.null(file)) {
+            weight.plot <- recordPlot()
+            save(weight.plot, file = file)
+        }
+    }
+}
+calculate.delta <-
+function (x, y, r) 
+{
+    delta.x <- x[2] - x[1]
+    delta.y <- y[2] - y[1]
+    x.null <- r/sqrt(delta.x^2 + delta.y^2) * delta.x
+    if (y[1] < y[2]) 
+        y.null <- -sqrt(r^2 - x.null^2)
+    else if (y[1] > y[2]) 
+        y.null <- sqrt(r^2 - x.null^2)
+    else y.null <- 0
+    c(x.null, y.null)
+}
+draw.text <-
+function (label, x, y, xy.null = c(0, 0), color, alignment = c("left", 
+    "bottom"), ...) 
+{
+    x.label <- x[1] + xy.null[1]
+    y.label <- y[1] - xy.null[2]
+    x.delta <- x[2] - x[1]
+    y.delta <- y[2] - y[1]
+    angle = atan(y.delta/x.delta) * (180/pi)
+    if (angle < 0) 
+        angle <- angle + 0
+    else if (angle > 0) 
+        angle <- angle - 0
+    if (is.numeric(label)) 
+        label <- round(label, 5)
+    pushViewport(viewport(x = x.label, y = y.label, width = 0, 
+        height = , angle = angle, name = "vp1", just = alignment))
+    grid.text(label, x = 0, y = unit(0.75, "mm"), just = alignment, 
+        gp = gpar(col = color, ...))
+    popViewport()
+}
+```
+
+
+# Using dataset illustrating neuralnet:
+
+For those network layout plots to fit in the space allotted, fig.height and fig.width have to be adjusted 
+
+```{r,fig.width=8,fig.height=8}
+# load the library, check out example dataset:
+library(neuralnet)
+dim(infert)
+head(infert)
+pairs(infert[-c(1,5)],col=infert$case+1)
+# fit model with default parameters:
+if ( FALSE ) {
+  # this doesn't work - why?
+  nnRes <- neuralnet(case~., infert)
+  nnRes <- neuralnet(case~., data=infert)
+}
+# because neuralnet doesn't like y~. notation:
+nnRes <- neuralnet(case~parity+induced+spontaneous, infert)
+# plot the network layout (in a separate window):
+plot(nnRes)
+# check output results:
+names(nnRes)
+class(nnRes$response)
+dim(nnRes$response)
+head(nnRes$response)
+table(nnRes$response,infert$case)
+class(nnRes$covariate)
+dim(nnRes$covariate)
+head(nnRes$covariate)
+nnRes$model.list
+nnRes$err.fct
+sum(nnRes$err.fct(nnRes$response,nnRes$net.result[[1]][,1]))
+nnRes$act.fct
+nnRes$linear.output
+class(nnRes$data)
+dim(nnRes$data)
+head(nnRes$data)
+class(nnRes$net.result)
+length(nnRes$net.result)
+class(nnRes$net.result[[1]])
+dim(nnRes$net.result[[1]])
+head(nnRes$net.result[[1]])
+# net.result (approximating outcome) is associated with it:
+plot(nnRes$net.result[[1]][,1],col=infert$case+1)
+table(nnRes$net.result[[1]][,1]>0.5,infert$case)
+table(nnRes$net.result[[1]][,1]>median(nnRes$net.result[[1]][,1]),infert$case)
+table(nnRes$net.result[[1]][,1]>mean(nnRes$net.result[[1]][,1]),infert$case)
+boxplot(nnRes$net.result[[1]][,1]~infert$case)
+# network coefficients:
+class(nnRes$weights)
+# final:
+nnRes$weights
+# starting:
+nnRes$startweights
+# another run, another weights (starting and final):
+neuralnet(case~parity+induced+spontaneous, infert)$startweights
+neuralnet(case~parity+induced+spontaneous, infert)$weights
+# result for the first observation:
+c(1,nnRes$act.fct(c(1,nnRes$covariate[1,])%*%nnRes$weights[[1]][[1]]))%*%nnRes$weights[[1]][[2]]
+# is, indeed, the same:
+nnRes$net.result[[1]][1:3,1]
+```
+
+```{r}
+# different error function, apply activation function to the output:
+nnResCE <- neuralnet(case~parity+induced+spontaneous,infert,err.fct="ce", linear.output=FALSE)
+nnResCE$err.fct
+head(nnResCE$net.result[[1]])
+plot(nnRes$net.result[[1]],nnResCE$net.result[[1]])
+abline(0,1,lty=2)
+head(nnRes$net.result[[1]])
+plot(nnResCE$net.result[[1]][,1],col=infert$case+1)
+# to use cross-entropy the response has to be binary:
+infert$ca12 <- infert$case + 1
+table(infert$case,infert$ca12)
+if ( FALSE ) {
+  nnResCE12 <- neuralnet(ca12~parity+induced+spontaneous,infert,err.fct="ce", linear.output=FALSE)
+  # often takes much longer and does not converge, log(x) produces NaNs - why?
+}
+nnResCElin <- NULL
+while ( ! "weights" %in% names(nnResCElin) ) {
+  nnResCElin <- neuralnet(case~parity+induced+spontaneous, infert,err.fct="ce")
+}
+names(nnResCElin)
+nnResCElin$err.fct
+confidence.interval(nnResCElin)
+# prediction is not what you think:
+# And there is also ROCR::prediction(!!!)
+names(prediction(nnRes))
+head(prediction(nnRes)$rep1)
+dim(prediction(nnRes)$rep1)
+head(prediction(nnRes)$data)
+dim(prediction(nnRes)$data)
+mean(infert[infert$parity==1&infert$induced==0&infert$spontaneous==0,"case"])
+mean(infert[infert$parity==3&infert$induced==0&infert$spontaneous==0,"case"])
+mean(infert[infert$parity==1&infert$induced==1&infert$spontaneous==0,"case"])
+mean(infert[infert$parity==2&infert$induced==1&infert$spontaneous==0,"case"])
+# compute is the (old) method for predicting using
+# neuralnet neural network model, now there is also 
+# predict.nn (adhering to usual predict(model,...) convention)
+if ( FALSE ) {
+  # these used to fail, not in newer neuralnet's:
+  compute(nnRes,infert)
+  compute(nnRes,infert[,c("case","parity","induced","spontaneous")])
+  names(compute(nnRes,infert))
+  class(compute(nnRes,infert)[["net.result"]])
+  dim(compute(nnRes,infert)[["net.result"]])
+  # now there is predict.nn:
+  dim(predict(nnRes,infert))
+  # same thing:
+  sum(predict(nnRes,infert)==compute(nnRes,infert)[["net.result"]])
+}
+##nnRes <- neuralnet(case~parity+induced+spontaneous, infert[,c("case","parity","induced","spontaneous")])
+# columns in "covariate" must match those in the model:
+compRes <- compute(nnRes,infert[,c("parity","induced","spontaneous")])
+plot(compRes$net.result,col=infert$case+1)
+```
+
+```{r,fig.width=8,fig.height=8}
+# one hidden layer, three nodes in hidden layer:
+nnResCE3 <- neuralnet(case~parity+induced+spontaneous, data=infert,hidden=3,err.fct="ce", linear.output=FALSE)
+plot(nnResCE3)
+plot(nnResCE3$net.result[[1]][,1],col=infert$case+1)
+# very similar predictions to those before:
+plot(nnRes$net.result[[1]][,1],nnResCE3$net.result[[1]][,1])
+table(nnRes$net.result[[1]][,1]>0.5,nnResCE3$net.result[[1]][,1]>0.5)
+```
+
+```{r,fig.width=8,fig.height=8}
+# two hidden layers, four nodes in each:
+nnResCE44 <- NULL
+iTry <- 0
+# doesn't always converge at first attempt:
+while ( ! "weights"%in%names(nnResCE44) ) {
+  iTry <- iTry + 1
+  nnResCE44 <- neuralnet(case~parity+induced+spontaneous, data=infert,hidden=c(4,4),err.fct="ce", linear.output=FALSE)
+  cat(iTry,fill=TRUE)
+}
+plot(nnResCE44)
+plot(nnResCE44$net.result[[1]][,1],col=infert$case+1)
+table(nnRes$net.result[[1]][,1]>0.5,nnResCE44$net.result[[1]][,1]>0.5)
+table(nnResCE44$net.result[[1]][,1]>median(nnResCE44$net.result[[1]][,1]),infert$case)
+```
+
+```{r,fig.width=8,fig.height=8}
+# three hidden layers, 5 nodes in each:
+nnResCE555 <- NULL
+iTry <- 0
+# doesn't always converge at first attempt:
+while ( ! "weights"%in%names(nnResCE555) ) {
+  iTry <- iTry + 1
+  nnResCE555 <- neuralnet(case~parity+induced+spontaneous, data=infert,hidden=c(5,5,5),err.fct="ce", linear.output=FALSE)
+  cat(iTry,fill=TRUE)
+}
+plot(nnResCE555)
+plot(nnResCE555$net.result[[1]][,1],col=infert$case+1)
+table(nnResCE555$net.result[[1]][,1]>median(nnResCE555$net.result[[1]][,1]),infert$case)
+```
+
+```{r,fig.width=8,fig.height=8}
+# 3 hidden layers with 5, 4 and 3 nodes:
+nnResCE543 <- NULL
+iTry <- 0
+# doesn't always converge at first attempt:
+while ( ! "weights"%in%names(nnResCE543) ) {
+  iTry <- iTry + 1
+  nnResCE543 <- neuralnet(case~parity+induced+spontaneous, data=infert,hidden=c(5,4,3),err.fct="ce", linear.output=FALSE)
+  cat(iTry,fill=TRUE)
+}
+plot(nnResCE543)
+plot(nnResCE543$net.result[[1]][,1],col=infert$case+1)
+```
+
+```{r,fig.width=8,fig.height=8}
+# 3, 4 and 5 nodes in three hidden layers:
+nnResCE345 <- NULL
+iTry <- 0
+# doesn't always converge at first attempt:
+while ( ! "weights"%in%names(nnResCE345) ) {
+  iTry <- iTry + 1
+  nnResCE345 <- neuralnet(case~parity+induced+spontaneous, data=infert,hidden=c(3,4,5),err.fct="ce", linear.output=FALSE)
+  cat(iTry,fill=TRUE)
+}
+plot(nnResCE345)
+plot(nnResCE345$net.result[[1]][,1],col=infert$case+1)
+table(nnResCE345$net.result[[1]][,1]>median(nnResCE345$net.result[[1]][,1]),infert$case)
+# very similar results for two layouts:
+plot(nnResCE555$net.result[[1]][,1],nnResCE345$net.result[[1]][,1])
+```
+
+```{r}
+infertScaled <- infert[,1:6]
+infertScaled$education <- as.numeric(infertScaled$education)
+# scale everything but case:
+infertScaled[,-5] <- scale(infertScaled[,-5])
+head(infertScaled)
+if ( FALSE ) {
+  # this one takes some time and some time doesn't converge:
+  nnResCEscaled567 <- neuralnet(case~education+age+parity+induced+spontaneous, data=infertScaled,hidden=c(5,6,7),err.fct="ce", linear.output=FALSE)
+  nnResCEscaled32 <- neuralnet(case~parity+induced+spontaneous, data=infertScaled,hidden=c(3,2),err.fct="ce", linear.output=FALSE)
+  plot(nnResCEscaled32)
+  plot(nnResCEscaled32$net.result[[1]][,1],col=infert$case+1)
+  plot(nnResCE555$net.result[[1]][,1],nnResCEscaled32$net.result[[1]][,1])
+  table(nnResCEscaled32$net.result[[1]][,1]>0.5,infert$case)
+}
+```
+
+# Similar to preface in the assignment:
+
+```{r,fig.width=8,fig.height=8}
+nObs <- 1000
+ctrPos <- 2
+xyTmp <- matrix(rnorm(4*nObs),ncol=2)
+xyCtrsTmp <- matrix(sample(c(-1,1)*ctrPos,nObs*4,replace=TRUE),ncol=2)
+xyTmp <- xyTmp + xyCtrsTmp
+gTmp <- sign(apply(xyCtrsTmp,1,prod))
+plot(xyTmp,col=as.numeric(factor(gTmp)))
+nnRes <- neuralnet(g~X1+X2,data.frame(g=gTmp,xyTmp))
+plot(nnRes)
+head(nnRes$net.result[[1]])
+plot(nnRes$net.result[[1]],col=as.numeric(factor(gTmp)))
+table(nnRes$net.result[[1]][,1]>0,gTmp)
+grid1Dtmp <- (-60:60)/10
+xyGridTmp <- cbind(X1=rep(grid1Dtmp,length(grid1Dtmp)),X2=sort(rep(grid1Dtmp,length(grid1Dtmp))))
+gridValsTmp <- compute(nnRes,xyGridTmp)
+plot(xyGridTmp,col=as.numeric(gridValsTmp$net.result>0)+1,pch=20,cex=0.5)
+points(xyTmp,col=as.numeric(factor(gTmp)))
+## 0 = nnRes$weights[[1]][1]+nnRes$weights[[1]][2]*X1+nnRes$weights[[1]][3]*X2
+## X2 = (-nnRes$weights[[1]][1] - nnRes$weights[[1]][2]*X1) / nnRes$weights[[1]][3]
+abline(-nnRes$weights[[1]][[1]][1,1] / nnRes$weights[[1]][[1]][3,1], -nnRes$weights[[1]][[1]][2,1] /nnRes$weights[[1]][[1]][3,1],lty=2,lwd=2)
+```
+
+```{r,fig.width=8,fig.height=8}
+nnRes2 <- neuralnet(g~X1+X2,hidden=2,data.frame(g=gTmp,xyTmp))
+plot(nnRes2)
+```
+
+```{r}
+plot(nnRes2$net.result[[1]],col=as.numeric(factor(gTmp)))
+table(nnRes2$net.result[[1]][,1]>0,gTmp)
+gridValsTmp2 <- compute(nnRes2,xyGridTmp)
+plot(xyGridTmp,col=as.numeric(gridValsTmp2$net.result>0)+1,pch=20,cex=0.5)
+points(xyTmp,col=as.numeric(factor(gTmp)))
+for ( iNode in 1:2 ) {
+    abline(-nnRes2$weights[[1]][[1]][1,iNode] / nnRes2$weights[[1]][[1]][3,iNode], -nnRes2$weights[[1]][[1]][2,iNode] /nnRes2$weights[[1]][[1]][3,iNode],lty=2,lwd=2)
+}
+```
+
+# College data from ISLR
+
+```{r}
+library(ISLR)
+head(College)
+CollegeScaled <- College
+CollegeScaled[,2:ncol(CollegeScaled)] <- scale(CollegeScaled[,2:ncol(CollegeScaled)])
+head(CollegeScaled)
+CollegeScaled$Private = as.numeric(CollegeScaled$Private)-1
+nnRes <- neuralnet(Private ~ Apps + Accept + Enroll + Top10perc + Top25perc + F.Undergrad + P.Undergrad + Outstate + Room.Board + Books + Personal + PhD + Terminal + S.F.Ratio + perc.alumni + Expend + Grad.Rate, CollegeScaled, hidden=c(5,5,5), linear.output=FALSE)
+head(compute(nnRes,nnRes$covariate)$net.result)
+plot(compute(nnRes,nnRes$covariate)$net.result[,1],col=CollegeScaled$Private+1)
+table(compute(nnRes,nnRes$covariate)$net.result[,1]>0.5,CollegeScaled$Private)
+for ( iTry in 1:3 ) {
+  trainIdx <- sample(nrow(CollegeScaled),nrow(CollegeScaled)/2)
+  nnRes <- neuralnet(Private ~ Apps + Accept + Enroll + Top10perc + Top25perc + F.Undergrad + P.Undergrad + Outstate + Room.Board + Books + Personal + PhD + Terminal + S.F.Ratio + perc.alumni + Expend + Grad.Rate, CollegeScaled[trainIdx,], hidden=c(5,5,5), linear.output=FALSE)
+  nnPred <- compute(nnRes,CollegeScaled[-trainIdx,-1])$net.result[,1]
+  print(table(nnPred>0.5,CollegeScaled[-trainIdx,1]))
+}
+dfTmp <- NULL
+for ( iHid in 1:3 ) {
+  for ( iNod in 1:5 ) {
+    hTmp <- rep(iNod,iHid)
+    for ( iTry in 1:10 ) {
+      trainIdx <- sample(nrow(CollegeScaled),nrow(CollegeScaled)/2)
+      nnRes <- neuralnet(Private ~ Apps + Accept + Enroll + Top10perc + Top25perc + F.Undergrad + P.Undergrad + Outstate + Room.Board + Books + Personal + PhD + Terminal + S.F.Ratio + perc.alumni + Expend + Grad.Rate, CollegeScaled[trainIdx,], hidden=hTmp, linear.output=FALSE)
+      nnPred <- compute(nnRes,CollegeScaled[-trainIdx,-1])$net.result[,1]
+      tblTmp <- table(nnPred>0.5,CollegeScaled[-trainIdx,1])
+      errTmp <- 1 - sum(diag(tblTmp))/sum(tblTmp)
+      dfTmp <- rbind(dfTmp,data.frame(nodes=iNod,layers=iHid,error=errTmp))
+    }
+  }
+}
+library(ggplot2)
+ggplot(dfTmp,aes(x=factor(nodes),y=error))+geom_jitter()+facet_wrap(~layers)
+```
+
+
+# Session info {-}
+
+For reproducibility purposes it is always a good idea to capture the state of the environment that was used to generate the results:
+
+```{r}
+sessionInfo()
+```
+
+The time it took to knit this file from beginning to end is about (seconds):
+
+```{r}
+proc.time() - ptStart
+```
