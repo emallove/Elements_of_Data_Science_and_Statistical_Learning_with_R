@@ -424,18 +424,57 @@ system.time(invisible(neuralnet(g ~ X1 + X2, data.frame(g = as.numeric(factor(gT
 >    the axes indicating classes to which observations belong with
 >    symbol color and/or shape (you can use function `pairs`, for
 >    example) (2 points)
+
+
+```{r 3d_dataset_withClasses}
+
+library(scatterplot3d)
+set.seed (1)
+nObs <- 100
+x <- runif(nObs, -1, 1)
+y <- runif(nObs, -1, 1)
+z <- runif(nObs, -1, 1)
+
+# The inner cube is 
+myBound <- 2^(2/3) * 0.5
+
+redIndicies <- (
+  unique(
+    (1:length(x))[x > myBound],
+    (1:length(x))[y > myBound],
+    (1:length(x))[z > myBound],
+    (1:length(x))[x < -myBound],
+    (1:length(x))[y < -myBound],
+    (1:length(x))[z < -myBound]
+  )
+)
+
+scatterplot3d(cbind(x, y, z, 
+  col = ifelse((x > myBound | y > myBound | z > myBound | x < -myBound | y < -myBound | z < -myBound ), 'red','black')))
+
+
+```
+
+
 > 5. Reflect on the geometry of this problem by answering the
 >    following question: what is the smallest number of planes in 3D
 >    space that would completely enclose points from the "inner"
->    class?  Is this number equal to the number of cube faces or is it
+>    class?
+
+Four planes -- four triangular faces create an enclosure.
+
+>    Is this number equal to the number of cube faces or is it
 >    something smaller? Larger?  Please note that "enclose" above does
 >    *not* mean "perfectly discriminate between the points assigned to
->    two classes" (2 points) 
-> 
+>    two classes" (2 points)
+
+Smaller than the face count of a cube.  Cube has six faces. 
+
 
 # Problem 2 (20 points): neural network classifier
 
-> For the dataset simulated above fit neural networks with 1 through 6 nodes in a single hidden layer (use `neuralnet` implementation).  For each of them calculate training error (see an example in Preface where it was calculated using `err.fct` field in the result returned by `neuralnet`).  Simulate another independent dataset (with n = 10, 000 observations to make resulting test error estimates less variable) using the same procedure as above (3D, two classes as nested cubes) and use it to calculate the test error at each number of hidden nodes.  Plot training and test errors as function of the number of nodes in the hidden layer.  What does resulting plot tells you about the interplay between model error, model complexity and problem geometry?  What is the geometrical interpretation of this error behavior?
+> For the dataset simulated above fit neural networks with 1 through 6 nodes in a single hidden layer (use `neuralnet` implementation).  For each of them calculate training error (see an example in Preface where it was calculated using `err.fct` field in the result returned by `neuralnet`).  Simulate another independent dataset (with n = 10,000 observations to make resulting test error estimates less variable) using the same procedure as above (3D, two classes as nested cubes) and use it to calculate the test error at each number of hidden nodes.  Plot training and test errors as function of the number of nodes in the hidden layer.  What does resulting plot tells you about the interplay between model error, model complexity and problem geometry?  What is the geometrical interpretation of this error behavior?
+
 
 
 # Problem 3 (30 points): evaluate impacts of sample size and noise
