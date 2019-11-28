@@ -1,12 +1,12 @@
-- - -
-title: "CSCI E - 63C Week 13 Problem Set"
+---
+title: "CSCI E-63C Week 13 Problem Set"
 author: "Ethan Mallove"
 date: "November 27, 2019"
 output:
   html_document:
     toc: true
     number_sections: true
-- - -
+---
 
 ```{r setup, include = FALSE}
 ptStart <- proc.time()
@@ -250,7 +250,7 @@ set.seed(1234567890)
 nObs <- 1000
 ctrPos <- 2
 xyTmp <- matrix(rnorm(4*nObs), ncol = 2)
-xyCtrsTmp <- matrix(sample(c( - 1, 1)*ctrPos, nObs*4, replace = TRUE), ncol = 2)
+xyCtrsTmp <- matrix(sample(c( -1, 1)*ctrPos, nObs*4, replace = TRUE), ncol = 2)
 xyTmp <- xyTmp + xyCtrsTmp
 gTmp <- paste0("class", (1 + sign(apply(xyCtrsTmp, 1, prod)))/2)
 plot(xyTmp, col = as.numeric(factor(gTmp)), pch = as.numeric(factor(gTmp)), xlab = "X1", ylab = "X2")
@@ -291,7 +291,7 @@ quantile(nnResNLO$net.result[[1]])
 
 > As the last statement (the quantiles of the predicted out) above shows, the use of activation function limiting predicted values to $[0;1]$ range when modeling outcome taking values outside of $[0;1]$ interval does not result in a very useful model. In this case with true outcome values constrained to $\{1, 2\}$ so that the error is minimized by predicting every outcome to be as close to $1$ as possible.
 
-> Using binary -- 0 or 1 -- outcome produces more useful model when activation function is applied to the output node (`linear.output = FALSE`) and allows use of cross - entropy error function (often used in classification setting in combination with the activation function applied to the output layer):
+> Using binary -- 0 or 1 -- outcome produces more useful model when activation function is applied to the output node (`linear.output = FALSE`) and allows use of cross-entropy error function (often used in classification setting in combination with the activation function applied to the output layer):
 
 ```{r}
 nnResNLO01 <- neuralnet(g ~ X1 + X2, data.frame(g = as.numeric(factor(gTmp)) - 1, xyTmp), linear.output = FALSE)
@@ -311,7 +311,7 @@ quantile(nnResNLO01CE$net.result[[1]])
 > The nature of the model estimated by `neuralnet` in this (very simple!) case becomes even more intuitive if we render all points in the area encompassing our training set with model predictions and overlay training dataset on top of that (right panel below).  It is immediately apparent that this model identified a line in this 2D space separating one cloud of points belonging mostly to one class from all others so that predicted values are approximately equal to the average outcome on each side of this decision boundary.
 
 ```{r, fig.height = 6, fig.width = 12}
-plotNNpreds2D2class <- function(inpNN, inpClassThresh, inpGrid = ( - 60:60)/10) {
+plotNNpreds2D2class <- function(inpNN, inpClassThresh, inpGrid = ( -60:60)/10) {
   tmpClrPch <- as.numeric(factor(inpNN$response))
   plot(inpNN$net.result[[1]], col = tmpClrPch, pch = tmpClrPch)
   table(inpNN$net.result[[1]][, 1]>inpClassThresh, inpNN$response)
@@ -335,7 +335,7 @@ plotNNpreds2D2class(nnRes, 1.3)
 par(old.par)
 ```
 
-> Similar, aside from a different position of decision boundary, results can be obtained when using binary representation of the outcome with cross - entropy as error function together with applying activation function to the output layer:
+> Similar, aside from a different position of decision boundary, results can be obtained when using binary representation of the outcome with cross-entropy as error function together with applying activation function to the output layer:
 
 ```{r, fig.width = 8, fig.height = 8}
 plot(nnResNLO01CE)
@@ -352,7 +352,7 @@ par(old.par)
 > The important points resulting from the results shown in the figures above are the following:
 > 
 > * as simple of a model as the one that was employed here (with one node in a single hidden layer along with all other default parameters) cannot do much better than what we observed here
-> * because calling (default - logistic) activation function on a given linear combination of the input variables more or less amounts to assigning almost all points on one side of hyperplane (line in 2D, plane in 3D, etc.) to zero and on the other side -- to unity
+> * because calling (default-logistic) activation function on a given linear combination of the input variables more or less amounts to assigning almost all points on one side of hyperplane (line in 2D, plane in 3D, etc.) to zero and on the other side -- to unity
 > * weights involved in transforming outcome of the hidden layer into model predictions will change those zeroes and ones to values closer to the desired outcome values, but still, use of such a simple model (with a single hidden node) employed here to prime our intuition more or less amounts to splitting covariate space into two half spaces by a hyperplane and assigning almost constant outcomes to the vast majority of the points on either side of it
 > * the weights for the inputs into the single hidden node shown in the network layout plot above and stored in `weights` field of the result returned by `neuralnet` define this hyperplane (line in 2D, etc.) shown as dashes in the panels on the right above
 > * this hyperplane is where sum of weighted input variables and an intercept is identical zero (and thus the result of logistic activation function is 0.5 rapidly becoming zero or one for points further away from this boundary)
@@ -402,13 +402,13 @@ system.time(invisible(neuralnet(g ~ X1 + X2, data.frame(g = as.numeric(factor(gT
 system.time(invisible(neuralnet(g ~ X1 + X2, data.frame(g = as.numeric(factor(gTmp)) - 1, xyTmp), hidden = 2, linear.output = FALSE, err.fct = "ce")))
 ```
 
-> Obviously, for our toy example use of untransformed outcome from the output node and sum of squares as error function results in the fastest convergence.  But then the decision as to how to translate its predictions to class categories is yours.  On the other hand, one might argue that more principled approach since we are dealing with classification problem would be to use logistic transform of the outcome to contain it within $[0;1]$ interval and cross - entropy as an error function.  Except that it seems to run nearly two orders of magnitude slower in this case and does not necessarily converge with default values for the rest of the arguments.  Please feel free to experiment with how they will perform for the problems you are presented with below and decide for yourself which combination of these parameters is more suitable for the task at hand.
+> Obviously, for our toy example use of untransformed outcome from the output node and sum of squares as error function results in the fastest convergence.  But then the decision as to how to translate its predictions to class categories is yours.  On the other hand, one might argue that more principled approach since we are dealing with classification problem would be to use logistic transform of the outcome to contain it within $[0;1]$ interval and cross-entropy as an error function.  Except that it seems to run nearly two orders of magnitude slower in this case and does not necessarily converge with default values for the rest of the arguments.  Please feel free to experiment with how they will perform for the problems you are presented with below and decide for yourself which combination of these parameters is more suitable for the task at hand.
 
 # Problem 1 (10 points): generate 3D data with nested cubes
 
-> Simulate data with n = 1000 observations and p = 3 covariates -- all random variables from uniform distribution contained on $[ - 1, 1]$ interval: $X_i\sim \mathcal{U}( - 1, 1), i = \{1, 2, 3\}$.  Resulting observations should be uniformly filling in a 3D cube centered at $(0, 0, 0)$ with the edge of length $2$. Create two category class variable assigning all observations within a smaller cube -- also centered at $(0, 0, 0)$ with the edge length of $2^\frac{2}{3}$ -- to one class category and observations outside of this cube -- to the second class category.
+> Simulate data with n = 1000 observations and p = 3 covariates -- all random variables from uniform distribution contained on $[ -1, 1]$ interval: $X_i\sim \mathcal{U}( -1, 1), i = \{1, 2, 3\}$.  Resulting observations should be uniformly filling in a 3D cube centered at $(0, 0, 0)$ with the edge of length $2$. Create two category class variable assigning all observations within a smaller cube -- also centered at $(0, 0, 0)$ with the edge length of $2^\frac{2}{3}$ -- to one class category and observations outside of this cube -- to the second class category.
 
-> Please note that this dataset is entirely different from the one used in the preface -- you will need to write code simulating it on your own.  Somewhat related 2D dataset was used as a motivational example at week 12 (SVM) lecture before introducing kernels and SVMs. However, the example in the lecture was in 2D (three - dimensional problem here), had spheric boundary  (here we work with nested cubes) and used normal (here uniform) distribution.  Since you will be reusing this code in the following two problems it is probably best to turn this procedure into a function with appropriate parameters.
+> Please note that this dataset is entirely different from the one used in the preface -- you will need to write code simulating it on your own.  Somewhat related 2D dataset was used as a motivational example at week 12 (SVM) lecture before introducing kernels and SVMs. However, the example in the lecture was in 2D (three-dimensional problem here), had spheric boundary  (here we work with nested cubes) and used normal (here uniform) distribution.  Since you will be reusing this code in the following two problems it is probably best to turn this procedure into a function with appropriate parameters.
 
 > Ten points available for this problem are composed of accomplishing the following tasks:
 > 
@@ -440,12 +440,12 @@ system.time(invisible(neuralnet(g ~ X1 + X2, data.frame(g = as.numeric(factor(gT
 
 # Problem 3 (30 points): evaluate impacts of sample size and noise
 
-> Setup a simulation repeating procedure described above for n = 100, 200 and 500 observations in the *training* set as well as adding none, 1, 2 and 5 null variables to the training and test data (and to the covariates in formula provided to `neuralnet`).  Draw values for null variables from uniform distribution on $[ - 1, 1]$ as well and do not use them in the assignment of the observations to the class category (e.g. `x< - matrix(runif(600, -1, 1), ncol = 6); cl< - as.numeric(factor(rowSums(abs(x[, 1:3])<2^( - 1/3)) = =3))` creates dataset with three informative and three null variables). Repeat calculation of training and test errors at least several times for each combination of sample size, number of null variables and size of the hidden layer simulating new training and test dataset every time to assess variability in those estimates.  Present resulting error rates so that the effects of sample size and fraction of null variables can be discerned and discuss their impact of the resulting model fits.  
+> Setup a simulation repeating procedure described above for n = 100, 200 and 500 observations in the *training* set as well as adding none, 1, 2 and 5 null variables to the training and test data (and to the covariates in formula provided to `neuralnet`).  Draw values for null variables from uniform distribution on $[ -1, 1]$ as well and do not use them in the assignment of the observations to the class category (e.g. `x <- matrix(runif(600, -1, 1), ncol = 6); cl <- as.numeric(factor(rowSums(abs(x[, 1:3])<2^( -1/3)) = =3))` creates dataset with three informative and three null variables). Repeat calculation of training and test errors at least several times for each combination of sample size, number of null variables and size of the hidden layer simulating new training and test dataset every time to assess variability in those estimates.  Present resulting error rates so that the effects of sample size and fraction of null variables can be discerned and discuss their impact of the resulting model fits.  
 
 
 # Extra 10 points problem: model WiFi localization data
 
-> Use `neuralnet` to model the outcome in WiFi localization dataset that we used in previous weeks *using outcome in its original, four - levels format.* Your `neuralnet` models will need to have four output nodes to represent outcome with four levels. Obtain training and test error for this model for several sizes of the hidden layer.  Compare resulting test error in predicting Location 3 to that observed for random forest, SVM and KNN approaches earlier in the course.
+> Use `neuralnet` to model the outcome in WiFi localization dataset that we used in previous weeks *using outcome in its original, four-levels format.* Your `neuralnet` models will need to have four output nodes to represent outcome with four levels. Obtain training and test error for this model for several sizes of the hidden layer.  Compare resulting test error in predicting Location 3 to that observed for random forest, SVM and KNN approaches earlier in the course.
 
 # Session info { - }
 
