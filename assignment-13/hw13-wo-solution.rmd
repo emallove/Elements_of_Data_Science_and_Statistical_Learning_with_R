@@ -549,21 +549,22 @@ computeErrorRate <- function (myTable) {
   return (1 - sum(diag(myTable)) / sum(myTable))
 }
 
-getNnTmpTable <- function(xyzTest, xyzTrain, classTest, classTrain, hiddenLayerNodesArg) {
-  nnRes <- neuralnet(outcome ~ ., cbind(xyzTrain, outcome = classTrain), hidden = c(hiddenLayerNodesArg), linear.output = FALSE)
-  #print(nnRes)
-  #plot(nnRes)
+getNnTmpTable <- function(xyzTest, xyzTrain, classTest, classTrain) {
+  nnRes <- neuralnet(outcome ~ ., cbind(xyzTrain, outcome = classTrain), hidden = 5, rep = 1, stepmax=1e+06, threshold = 0.1, linear.output = FALSE, err.fct = 'ce')
   nnTmpTbl <- table(classTest, round(predict(nnRes, newdata = xyzTest)))
   return (nnTmpTbl)
 }
 
+nnTable <- getNnTmpTable(xyzTest, xyzTrain, classTest, classTrain)
+computeErrorRate(nnTable)
+
 # Classification (so linear.output = TRUE), not regression
 # for (hiddenLayerNode in 1:6) {
-for (hiddenLayerNode in 1:6) {
-  nnTable <- getNnTmpTable(xyzTest, xyzTrain, classTest, classTrain, hiddenLayerNode)
-  print(sprintf("Number of nodes in hidden layer: %d", hiddenLayerNode))
-  computeErrorRate(nnTable)
-}
+# for (hiddenLayerNode in 1:6) {
+#   nnRes <- neuralnet(outcome ~ ., twoClassesIn3D, hidden = c(hiddenLayerNode), linear.output = FALSE)
+#   print(nnRes)
+#   plot(nnRes)
+# }
 
 ```
 
