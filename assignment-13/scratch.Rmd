@@ -1,0 +1,17 @@
+[1] "Number of nodes in hidden layer:  1"
+[1] "Error rate:  0.424"
+[1] "Number of nodes in hidden layer:  2"
+[1] "Error rate:  0.31"
+[1] "Number of nodes in hidden layer:  3"
+[1] "Error rate:  0.268"
+[1] "Number of nodes in hidden layer:  4"
+[1] "Error rate:  0.17"
+[1] "Number of nodes in hidden layer:  5"
+[1] "Error rate:  0.152"
+[1] "Number of nodes in hidden layer:  6"
+[1] "Error rate:  0.084"
+
+
+
+
+
