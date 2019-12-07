@@ -8,14 +8,30 @@ output:
     number_sections: true
 ---
 
-```{r setup, include = FALSE}
+```{r setup, include = FALSE, error = TRUE, timeit = TRUE }
 ptStart <- proc.time()
 library(neuralnet)
 library(ggplot2)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r, echo = FALSE}
+```{r timeit, include=FALSE}
+knitr::knit_hooks$set(timeit = local({
+  now = NULL
+  function(before, options) {
+    if (before) {
+      now <<- Sys.time()
+    } else {
+      res = difftime(Sys.time(), now)
+      now <<- NULL
+      # use options$label if you want the chunk label as well
+      paste('<p style="font-color: grey; font-style:italic;">Execution [wall clock] time for this code chunk:', as.character(round(res, 2)), " seconds</p>")
+    }
+  }})
+)
+```
+
+```{r, echo = FALSE, error = TRUE, timeit = TRUE }
 library(grid)
 plot.nn <-
 function (x, rep = NULL, x.entry = NULL, x.out = NULL, radius = 0.15, 
@@ -244,7 +260,7 @@ function (label, x, y, xy.null = c(0, 0), color, alignment = c("left",
 
 > First of all, to compensate for lack of coverage on this topic in ISLR, let's go over a couple of simple examples.  We start with simulating a simple two class dataset in 2D predictor space with an outcome representative of an interaction between attributes.  (Please notice that for the problems you will be working on this week you will be asked below to simulate a dataset using a different model.)
 
-```{r, fig.height = 7, fig.width = 7}
+```{r, fig.height = 7, fig.width = 7, error = TRUE, timeit = TRUE }
 # fix seed so that narrative always matches the plots:
 set.seed(1234567890)
 nObs <- 1000
@@ -264,7 +280,7 @@ abline(v = 0)
 
 > We can fit simple neural network (using all default values in the call to `neuralnet` -- notice that both covariates and outcome have to be numeric as opposed to factor) and plot its layout (allowing for its output to be included in Rmarkdown generated report actually seems to be quite painful - one has to overwrite original implementation of `plot.nn` with the one that doesn't call `dev.new()` that is included in this Rmarkdown file with `echo = FALSE` -- to do the same you have to include that block into your Rmarkdown file also):
 
-```{r, fig.height = 7, fig.width = 7}
+```{r, fig.height = 7, fig.width = 7, error = TRUE, timeit = TRUE }
 ### Doesn't run: "requires numeric/complex ... arguments"
 ### nnRes <- neuralnet(g ~ X1 + X2, data.frame(g = gTmp, xyTmp))
 nnRes <- neuralnet(g ~ X1 + X2, data.frame(g = as.numeric(factor(gTmp)), xyTmp))
@@ -310,7 +326,7 @@ quantile(nnResNLO01CE$net.result[[1]])
 
 > The nature of the model estimated by `neuralnet` in this (very simple!) case becomes even more intuitive if we render all points in the area encompassing our training set with model predictions and overlay training dataset on top of that (right panel below).  It is immediately apparent that this model identified a line in this 2D space separating one cloud of points belonging mostly to one class from all others so that predicted values are approximately equal to the average outcome on each side of this decision boundary.
 
-```{r, fig.height = 6, fig.width = 12}
+```{r, fig.height = 6, fig.width = 12, error = TRUE, timeit = TRUE }
 plotNNpreds2D2class <- function(inpNN, inpClassThresh, inpGrid = ( -60:60)/10) {
   tmpClrPch <- as.numeric(factor(inpNN$response))
   plot(inpNN$net.result[[1]], col = tmpClrPch, pch = tmpClrPch)
@@ -337,13 +353,13 @@ par(old.par)
 
 > Similar, aside from a different position of decision boundary, results can be obtained when using binary representation of the outcome with cross-entropy as error function together with applying activation function to the output layer:
 
-```{r, fig.width = 8, fig.height = 8}
+```{r, fig.width = 8, fig.height = 8, error = TRUE, timeit = TRUE }
 plot(nnResNLO01CE)
 ```
 
 > Once activation function is applied to the output node, the output values are bound to the $[0, 1]$ interval.  The predicted values that are far enough from the decision boundary are also approximately set to the average of the outcome in that subspace:
 
-```{r, fig.height = 6, fig.width = 12}
+```{r, fig.height = 6, fig.width = 12, error = TRUE, timeit = TRUE }
 old.par <- par(mfrow = c(1, 2), ps = 16)
 plotNNpreds2D2class(nnResNLO01CE, 0.5)
 par(old.par)
@@ -363,7 +379,7 @@ par(old.par)
 
 > To have more than one node in the hidden layer we set `hidden` parameter to the number of nodes in it (length of vector provided as `hidden` parameter governs the number of the hidden *layers* in the network -- we still use one layer here):
 
-```{r, fig.height = 7, fig.width = 7}
+```{r, fig.height = 7, fig.width = 7, error = TRUE, timeit = TRUE }
 set.seed(1234567)
 nnRes2 <- neuralnet(g ~ X1 + X2, data.frame(g = as.numeric(factor(gTmp)), xyTmp), hidden = 2)
 plot(nnRes2)
@@ -371,7 +387,7 @@ plot(nnRes2)
 
 > We can see that now resulting network has two nodes in a single hidden layer, which two covariates enter with weights that are approximately comparable in magnitude and opposite in sign.  Their comparably weighted sum added to a constant close to one gives the outcome value of this model. The effect of those weights in defining decision boundaries in the space of predictors is best seen from the figure below:
 
-```{r, fig.height = 6, fig.width = 12}
+```{r, fig.height = 6, fig.width = 12, error = TRUE, timeit = TRUE }
 old.par <- par(mfrow = c(1, 2), ps = 16)
 plotNNpreds2D2class(nnRes2, 1.5)
 par(old.par)
@@ -379,7 +395,7 @@ par(old.par)
 
 > This model sets up two almost parallel lines that encompass most of the observations from the first class, leaving most of the observations from the second class outside of the resulting slab.  Now let's repeat fitting neural network three times (each time starting with random choice of starting weights in the model) and compare stability of the resulting models:
 
-```{r, fig.height = 6, fig.width = 9}
+```{r, fig.height = 6, fig.width = 9, error = TRUE, timeit = TRUE }
 old.par <- par(mfcol = c(2, 3), ps = 16)
 for ( iTry in 1:3 ) {
   nnRes2 <- neuralnet(g ~ X1 + X2, data.frame(g = as.numeric(factor(gTmp)), xyTmp), hidden = 2)
@@ -416,7 +432,7 @@ system.time(invisible(neuralnet(g ~ X1 + X2, data.frame(g = as.numeric(factor(gT
 >    prescribed above (2 points)
 
 
-```{r 3d_dataset_withClasses}
+```{r 3d_dataset_withClasses, error = TRUE, timeit = TRUE }
 
 library(scatterplot3d)
 set.seed (1)
@@ -440,7 +456,7 @@ twoClassesIn3D <- cbind(x,y,z, (x > myBound | y > myBound | z > myBound | x < -m
 >    length of the inner cube edge that defines true decision boundary
 >    (2 points)
 
-```{r showClassSplit}
+```{r showClassSplit, error = TRUE, timeit = TRUE }
 
 print("Count of points in class 1 divided by count of points in the other class:")
 sum(twoClassesIn3D[,4]) / length(twoClassesIn3D[,4])
@@ -461,7 +477,7 @@ of the two spaces is equal (4 cubic units).
 >    example) (2 points)
 
 
-```{r scatterplot3d}
+```{r scatterplot3d, error = TRUE, timeit = TRUE }
 scatterplot3d(twoClassesIn3D[,1],
               twoClassesIn3D[,2],
               twoClassesIn3D[,3],
@@ -495,36 +511,246 @@ Smaller than the face count of a cube.  Cube has six faces.
 
 # Problem 2 (20 points): neural network classifier
 
-> For the dataset simulated above fit neural networks with 1 through 6 nodes in a single hidden layer (use `neuralnet` implementation).  For each of them calculate training error (see an example in Preface where it was calculated using `err.fct` field in the result returned by `neuralnet`).  Simulate another independent dataset (with n = 10,000 observations to make resulting test error estimates less variable) using the same procedure as above (3D, two classes as nested cubes) and use it to calculate the test error at each number of hidden nodes.  Plot training and test errors as function of the number of nodes in the hidden layer.  What does resulting plot tells you about the interplay between model error, model complexity and problem geometry?  What is the geometrical interpretation of this error behavior?
+> For the dataset simulated above fit neural networks with 1 through 6 nodes in a single hidden layer (use `neuralnet` implementation).  For each of them calculate training error (see an example in Preface where it was calculated using `err.fct` field in the result returned by `neuralnet`).  
 
 
-```{r get3dNestedCubesTestData}
+```{r get3dNestedCubesTestData, error = TRUE, timeit = TRUE }
 
 # Get training and test data from wifiLocDat list
-getTestData <- function(nObsArg = 1000) {
+#   - nObsArg:     number of rows in grid
+#   - numNullVars: number of null (or _uninformative_ variabels in training/test data set)
+
+getTestData <- function(nObsArg = 1000, numNullVars = 0) {
 
   nObs <- nObsArg
   x <- runif(nObs, -1, 1)
   y <- runif(nObs, -1, 1)
   z <- runif(nObs, -1, 1)
+
+  nullVarColumns <- matrix(runif(numNullVars * nObs, -1, 1), ncol = numNullVars)
   
   # The inner cube boundary
   myBound <- 2^(2/3) * 0.5
  
-  twoClassesIn3D <- cbind(x,y,z, (x > myBound | y > myBound | z > myBound | x < -myBound | y < -myBound | z < -myBound ));
-
-  colnames(twoClassesIn3D) <- c("x", "y", "z", "outcome")
+  twoClassesIn3D <- cbind(x,y,z)
   
+  if (numNullVars) {
+    twoClassesIn3D <- cbind(twoClassesIn3D, nullVarColumns)
+  }
+ 
+  twoClassesIn3D <- cbind(twoClassesIn3D, (x > myBound | y > myBound | z > myBound | x < -myBound | y < -myBound | z < -myBound ))
+  
+  # Ensure column names are valid variable names (no special characters)
+  if (numNullVars) {
+    colnames(twoClassesIn3D) <- c("x", "y", "z", LETTERS[seq( from = 1, to = numNullVars )], "outcome")
+  } else {
+    colnames(twoClassesIn3D) <- c("x", "y", "z", "outcome")
+  }
+ 
+  # Get random indices
+  randomIndices <- sample(1:nObs, floor(nObs/2))
+
+  xyzTrain   <- twoClassesIn3D[ randomIndices, 1:(3 + numNullVars)]
+  xyzTest    <- twoClassesIn3D[-randomIndices, 1:(3 + numNullVars)]
+  classTrain <- twoClassesIn3D[ randomIndices,   (3 + numNullVars + 1)]
+  classTest  <- twoClassesIn3D[-randomIndices,   (3 + numNullVars + 1)]
+
+  return ( list(
+    "xyzTest"    = xyzTest,
+    "xyzTrain"   = xyzTrain,
+    "classTest"  = classTest,
+    "classTrain" = classTrain
+  ))
+}
+
+```
+
+```{r getTestData__noNullVars}
+undebug(getTestData)
+gtd <- getTestData(100, 0)
+xyzTest    = gtd$xyzTest
+xyzTrain   = gtd$xyzTrain
+classTest  = gtd$classTest
+classTrain = gtd$classTrain
+```
+
+
+```{r neuralNet_1HiddenLayerOfSixNodes, error = TRUE, timeit = TRUE }
+
+computeErrorRate <- function (myTable) {
+  return (1 - sum(diag(myTable)) / sum(myTable))
+}
+
+getNnTmpTable <- function(xyzTest, xyzTrain, classTest, classTrain, hiddenArg) {
+  nnRes <- neuralnet(outcome ~ ., cbind(xyzTrain, outcome = classTrain), hidden = c(hiddenArg), rep = 1, stepmax=1e+06, threshold = 0.1, linear.output = FALSE, err.fct = 'ce')
+  nnTmpTbl <- table(classTest, round(predict(nnRes, newdata = xyzTest)))
+  return (nnTmpTbl)
+}
+
+myHeights <- c()
+myHiddenLayerNodeCounts <- 1:6
+
+for (hA in myHiddenLayerNodeCounts) {
+  nnTable <- getNnTmpTable(xyzTest, xyzTrain, classTest, classTrain, hiddenArg = hA)
+  print(paste("Number of nodes in hidden layer: ", hA))
+  
+  newHeight <- computeErrorRate(nnTable)
+  print(paste("Error rate: ", newHeight))
+  myHeights <- c(myHeights, newHeight)
+}
+
+# Plot the error rates for each hidden layer node count
+barplot(height = myHeights,
+        names.arg = 1:length(myHeights),
+        col = rainbow(length(myHeights)),
+        xlab = "Number of nodes in hidden layer",
+        ylab = "Error rate")
+
+```
+
+> Simulate another independent dataset (with n = 10,000 observations to make resulting test error estimates less variable) using the same procedure as above (3D, two classes as nested cubes) and use it to calculate the test error at each number of hidden nodes.  Plot training and test errors as function of the number of nodes in the hidden layer.  What does resulting plot tells you about the interplay between model error, model complexity and problem geometry?  What is the geometrical interpretation of this error behavior?
+
+```{r largerDataSet, error = TRUE, timeit = TRUE }
+
+# Same exercise as the previous Rmd chunk, but with 10x the data points
+gtd <- getTestData(10000, 0)
+xyzTest    = gtd$xyzTest
+xyzTrain   = gtd$xyzTrain
+classTest  = gtd$classTest
+classTrain = gtd$classTrain
+
+myHeights <- c()
+
+for (hA in myHiddenLayerNodeCounts) {
+  nnTable <- getNnTmpTable(xyzTest, xyzTrain, classTest, classTrain, hiddenArg = hA)
+  print(paste("Number of nodes in hidden layer: ", hA))
+  
+  newHeight <- computeErrorRate(nnTable)
+  print(paste("Error rate: ", newHeight))
+  myHeights <- c(myHeights, newHeight)
+}
+
+# Plot the error rates for each hidden layer node count
+barplot(height = myHeights,
+        names.arg = 1:length(myHeights),
+        col = rainbow(length(myHeights)),
+        xlab = "Number of nodes in hidden layer",
+        ylab = "Error rate")
+
+
+```
+
+# Problem 3 (30 points): evaluate impacts of sample size and noise
+
+> Setup a simulation repeating procedure described above for n = 100, 200 and 500 observations in the *training* set as well as adding none, 1, 2 and 5 null variables to the training and test data (and to the covariates in formula provided to `neuralnet`).  Draw values for null variables from uniform distribution on $[ -1, 1]$ as well and do not use them in the assignment of the observations to the class category (e.g. `x <- matrix(runif(600, -1, 1), ncol = 6); cl <- as.numeric(factor(rowSums(abs(x[, 1:3])<2^( -1/3)) = =3))` creates dataset with three informative and three null variables). Repeat calculation of training and test errors at least several times for each combination of sample size, number of null variables and size of the hidden layer simulating new training and test dataset every time to assess variability in those estimates.  Present resulting error rates so that the effects of sample size and fraction of null variables can be discerned and discuss their impact of the resulting model fits.  
+
+
+```{r testDataWithUninformativeVars, error = TRUE, timeit = TRUE }
+
+# Same exercise as the previous Rmd chunk, but with 10x the data points
+
+myHiddenLayerNodeCounts <- 1:6
+
+#################################################################################
+## BROKEN
+
+gtd <- getTestData(10, 1)
+xyzTest    = gtd$xyzTest
+xyzTrain   = gtd$xyzTrain
+classTest  = gtd$classTest
+classTrain = gtd$classTrain
+
+myHeights <- c()
+
+nnTable <- getNnTmpTable(xyzTest, xyzTrain, classTest, classTrain, hiddenArg = 1)
+print(paste("Number of nodes in hidden layer: ", hA))
+
+## END: test
+#################################################################################
+
+for (hA in myHiddenLayerNodeCounts) {
+  
+  print(paste("Number of nodes in hidden layer: ", hA))
+  
+  for (numObs in c(100, 200, 500)) {
+
+    print(paste("Number of observations: ", numObs))
+
+    for (uninformativeVarCount in c(0, 1, 2, 5)) {
+ 
+      print(paste("Number of (uninformative) null variables: ", uninformativeVarCount))
+
+      gtd <- getTestData(numObs, uninformativeVarCount)
+      xyzTest    = gtd$xyzTest
+      xyzTrain   = gtd$xyzTrain
+      classTest  = gtd$classTest
+      classTrain = gtd$classTrain
+    
+      myHeights <- c()
+ 
+      nnTable <- getNnTmpTable(xyzTest, xyzTrain, classTest, classTrain, hiddenArg = hA)
+      newHeight <- computeErrorRate(nnTable)
+      print(paste("Error rate: ", newHeight))
+ 
+ 
+      # Plot the error rates for each hidden layer node count
+      # myHeights <- c(myHeights, newHeight)
+      # barplot(height = myHeights,
+      #         names.arg = 1:length(myHeights),
+      #         col = rainbow(length(myHeights)),
+      #         xlab = "Number of nodes in hidden layer",
+      #         ylab = "Error rate")
+    }
+  }
+}
+    
+ 
+```
+
+
+# Extra 10 points problem: model WiFi localization data
+
+> Use `neuralnet` to model the outcome in WiFi localization dataset that we used in previous weeks *using outcome in its original, four-levels format.* Your `neuralnet` models will need to have four output nodes to represent outcome with four levels. Obtain training and test error for this model for several sizes of the hidden layer.  Compare resulting test error in predicting Location 3 to that observed for random forest, SVM and KNN approaches earlier in the course.
+
+```{r wifiExample,fig.width=8,fig.height=8,warning=FALSE}
+
+# library(ggplot2)
+#library(GGally)
+
+wifiLocDat <- read.table("wifi_localization.txt",sep="\t")
+colnames(wifiLocDat) <- c(paste0("WiFi",1:7),"Loc")
+#ggpairs(wifiLocDat,aes(colour=factor(Loc)))
+wifiLocDat[,"Loc3"] <- factor(wifiLocDat[,"Loc"]==3)
+wifiLocDat <- wifiLocDat[,colnames(wifiLocDat)!="Loc"]
+dim(wifiLocDat)
+#summary(wifiLocDat)
+#head(wifiLocDat)
+```
+
+```{r hw11Funtions}
+
+library(randomForest)
+library(MASS)
+library(class)
+library(e1071)
+
+globalTrainDataObs = 1000
+
+# Get training and test data from wifiLocDat list
+getTestData <- function() {
+
+  nObs <- length(wifiLocDat[, "Loc3"])
+
   # Get random indices
   randomIndices <- sample(1:nObs, floor(nObs/2))
 
   # Get indices not in randomIndices
   randomIndicesInverse <- setdiff(seq(1:nObs), randomIndices)
 
-  xyzTrain   <- twoClassesIn3D[ randomIndices, 1:3]
-  xyzTest    <- twoClassesIn3D[-randomIndices, 1:3]
-  classTrain <- twoClassesIn3D[ randomIndices, 4]
-  classTest  <- twoClassesIn3D[-randomIndices, 4]
+  xyzTrain   <- wifiLocDat[randomIndices,        1:7]
+  xyzTest    <- wifiLocDat[randomIndicesInverse, 1:7]
+  classTrain <- wifiLocDat[randomIndices,        8]
+  classTest  <- wifiLocDat[randomIndicesInverse, 8]
 
   return ( list(
     "xyzTest"    = xyzTest,
@@ -540,42 +766,84 @@ xyzTrain   = gtd$xyzTrain
 classTest  = gtd$classTest
 classTrain = gtd$classTrain
 
-```
+# Fit random forest to train data, obtain test error:
+getRfTmpTable <- function(xyzTest, xyzTrain, classTest, classTrain) {
+  rfRes <- randomForest(xyzTrain, classTrain)
+  rfTmpTbl <- table(classTest, predict(rfRes, newdata = xyzTest))
+  return (rfTmpTbl)
+}
 
+getLdaTmpTable <- function(xyzTest, xyzTrain, classTest, classTrain) {
+  ldaRes <- lda(xyzTrain, classTrain)
+  ldaTmpTbl <- table(classTest, predict(ldaRes, newdata = xyzTest)$class)
+  return (ldaTmpTbl)
+}
 
-```{r neuralNet_1HiddenLayerOfSixNodes}
+# Fit LDA model to train data and evaluate error on the test data:
+getKnnTmpTable <- function(xyzTest, xyzTrain, classTest, classTrain, kVal) {
+
+  knnRes <- knn(xyzTrain, xyzTest, classTrain, k = kVal)
+  knnTmpTbl <- table(classTest, knnRes)
+  return (knnTmpTbl)
+}
+
+# Fit SVM model to train data and evaluate error on the test data:
+getSvmTmpTable <- function(xyzTest, xyzTrain, classTest, classTrain, costVal, gammaVal) {
+  #svmRes <- svm(xyzTrain, classTrain, cost = costVal, gamma = gammaVal, kernel = "radial")
+  svmRes <- svm(xyzTrain, classTrain)
+  svmTmpTbl <- table(classTest, predict(svmRes, newdata = xyzTest))
+  print(svmTmpTbl)
+  return (svmTmpTbl)
+}
 
 computeErrorRate <- function (myTable) {
   return (1 - sum(diag(myTable)) / sum(myTable))
 }
 
-getNnTmpTable <- function(xyzTest, xyzTrain, classTest, classTrain) {
-  nnRes <- neuralnet(outcome ~ ., cbind(xyzTrain, outcome = classTrain), hidden = 5, rep = 1, stepmax=1e+06, threshold = 0.1, linear.output = FALSE, err.fct = 'ce')
-  nnTmpTbl <- table(classTest, round(predict(nnRes, newdata = xyzTest)))
-  return (nnTmpTbl)
+# Fit KNN model at several levels of k:
+compare_LDA_KNN_RF_SVM <- function(gammaVal, costVal) {
+  
+  gtd <- getTestData()
+  xyzTest    <- gtd$xyzTest
+  xyzTrain   <- gtd$xyzTrain
+  classTest  <- gtd$classTest
+  classTrain <- gtd$classTrain
+
+  ldaTmpTbl <- getLdaTmpTable(xyzTest , xyzTrain , classTest , classTrain)
+  rfTmpTbl  <- getRfTmpTable(xyzTest  , xyzTrain , classTest , classTrain)
+  knnTmpTbl <- getKnnTmpTable(xyzTest , xyzTrain , classTest , classTrain, 1)
+  svmTmpTbl <- getSvmTmpTable(xyzTest , xyzTrain , classTest , classTrain, costVal, gammaVal)
+  nnTmpTbl <- getSvmTmpTable(xyzTest , xyzTrain , classTest , classTrain, costVal, gammaVal)
+  
+  print(rfTmpTbl)
+  print(svmTmpTbl)
+  
+  titleArg    = sprintf("Comparing error rates of LDA, RandomForest, KNN, and SVM")
+  subtitleArg = sprintf("gamma: %d, cost: %.2f", gammaVal, costVal)
+
+  bars <- c(
+     computeErrorRate(svmTmpTbl),
+     computeErrorRate(knnTmpTbl),
+     #computeErrorRate(ldaTmpTbl),
+     computeErrorRate(rfTmpTbl)
+  )
+
+  barplot(bars,
+          names.arg = c("SVM", "KNN", "RF"),
+          #names.arg = c("SVM", "KNN", "LDA", "RF"),
+          col = rainbow(3),
+          ylab = "Error Rate",
+          xlab = "method",
+          main = titleArg,
+          sub = subtitleArg
+  )
 }
 
-nnTable <- getNnTmpTable(xyzTest, xyzTrain, classTest, classTrain)
-computeErrorRate(nnTable)
-
-# Classification (so linear.output = TRUE), not regression
-# for (hiddenLayerNode in 1:6) {
-# for (hiddenLayerNode in 1:6) {
-#   nnRes <- neuralnet(outcome ~ ., twoClassesIn3D, hidden = c(hiddenLayerNode), linear.output = FALSE)
-#   print(nnRes)
-#   plot(nnRes)
-# }
+gammaVal = 10
+costVal = 2
+compare_LDA_KNN_RF_SVM(costVal, gammaVal)
 
 ```
-
-# Problem 3 (30 points): evaluate impacts of sample size and noise
-
-> Setup a simulation repeating procedure described above for n = 100, 200 and 500 observations in the *training* set as well as adding none, 1, 2 and 5 null variables to the training and test data (and to the covariates in formula provided to `neuralnet`).  Draw values for null variables from uniform distribution on $[ -1, 1]$ as well and do not use them in the assignment of the observations to the class category (e.g. `x <- matrix(runif(600, -1, 1), ncol = 6); cl <- as.numeric(factor(rowSums(abs(x[, 1:3])<2^( -1/3)) = =3))` creates dataset with three informative and three null variables). Repeat calculation of training and test errors at least several times for each combination of sample size, number of null variables and size of the hidden layer simulating new training and test dataset every time to assess variability in those estimates.  Present resulting error rates so that the effects of sample size and fraction of null variables can be discerned and discuss their impact of the resulting model fits.  
-
-
-# Extra 10 points problem: model WiFi localization data
-
-> Use `neuralnet` to model the outcome in WiFi localization dataset that we used in previous weeks *using outcome in its original, four-levels format.* Your `neuralnet` models will need to have four output nodes to represent outcome with four levels. Obtain training and test error for this model for several sizes of the hidden layer.  Compare resulting test error in predicting Location 3 to that observed for random forest, SVM and KNN approaches earlier in the course.
 
 # Session info { - }
 
