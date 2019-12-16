@@ -128,6 +128,29 @@ getTestData <- function(splitBy = 5, splitTrainingAndTestBy = 2) {
 ```
 
 ```{r computeErrorRate, timeit = TRUE}
+
+# > count(pred$class)
+#   x freq
+# 1 0  860
+# 2 1  173
+# > count(classTest)
+#   x freq
+# 1 0  785
+# 2 1  248
+# > tbl <- addmargins(tbl)
+# > tbl
+# classTest    0    1  Sum
+#       0    749   36  785
+#       1    111  137  248
+#       Sum  860  173 1033
+      
+# Thus -- our cross-tabulation function (table()) gives us the following
+#   TN, FN, TP, and FP in the 2x2 confusion matrix
+# classTest    0    1  Sum
+#       0     TN   FP  785
+#       1     FN   TP  248
+#       Sum  860  173 1033
+
 computeErrorRate <- function (myTable) {
   return (1 - sum(diag(myTable)) / sum(myTable))
 }
@@ -136,12 +159,27 @@ computeAccuracy <- function (myTable) {
   return (sum(diag(myTable)) / sum(myTable))
 }
 
-computeSensitivity <- function (myTable) {
-  return (tbl[1,1] / (tbl[1,1] + tbl[2,1]))
+# TP / (TP + FP)
+computePrecision <- function (myTable) {
+  return (myTable[2,2] / (tbl[2,2] + tbl[1,2]))
 }
 
+# TP / (TP + FN) !!
+# FIXME: Why are false negatives to high -- leading to poor sensitivity?
+computeSensitivity <- function (myTable) {
+  return (myTable[2,2] / (myTable[2,2] + myTable[2,1]))
+}
+
+# TN / (TN + FP)
 computeSpecificity <- function (myTable) {
-  return (tbl[2,2] / (tbl[1,2] + tbl[2,2]))
+  return (myTable[1,1] / (myTable[1,1] + myTable[1,2]))
+}
+
+printAllConfusionMatrixStats <- function(myTable) {
+  print(paste("Accuracy: ", computeAccuracy(myTable)))
+  print(paste("Sensitivity: ", computeSensitivity(myTable)))
+  print(paste("Specificity: ", computeSpecificity(myTable)))
+  print(paste("Precision: ", computePrecision(myTable)))
 }
 
 ```
@@ -150,10 +188,11 @@ computeSpecificity <- function (myTable) {
 colNames <- c("response","id","wc","zwp","wi","dtj","bnf","qh","ent","sci","ypz","bw","tdt","sb","ox","xt","np","ku","is")
 colnames(finalExamDat) <- colNames
 
+par(mfrow=c(3, floor(length(colNames)/3)))
 for (c in colNames) {
 
   # Convert non-numeric columns (e.g., response) to numeric
-  hist(as.numeric(finalExamDat[, c]), main = paste("Histogram of ", c), xlab = c, col = rainbow(20))
+  hist(as.numeric(finalExamDat[, c]), main = c, xlab = c, col = rainbow(20))
 }
 ```
 
@@ -279,7 +318,7 @@ for (i in 1:3) {
 
   print(paste("Iteration #: ", i))
 
-  r <- getTestData(splitBy = 15)
+  r <- getTestData(splitBy = 30)
   xyzTest    = r$xyzTest
   xyzTrain   = r$xyzTrain
   classTest  = r$classTest
@@ -288,10 +327,9 @@ for (i in 1:3) {
   myLR <- glm(response ~., data = as.data.frame(cbind(xyzTrain, response = classTrain)), family = "binomial")
   plot(myLR)
   pred <- predict(myLR, newdata = as.data.frame(xyzTest))
-  tbl <- table(classTest, pred$y)
+  tbl <- table(classTest, round(pred))
 
-  er <- computeErrorRate(tbl)
-  print(paste("Error rate: ", er))
+  printAllConfusionMatrixStats(tbl)
 }
 
 ```
@@ -361,8 +399,7 @@ for (i in 1:3) {
   pred <- predict(myLDA, newdata = as.data.frame(xyzTest))
   tbl <- table(classTest, pred$class)
 
-  er <- computeErrorRate(tbl)
-  print(paste("Error rate: ", er))
+  printAllConfusionMatrixStats(tbl)
 }
 
 ```
@@ -392,8 +429,7 @@ for (i in 1:3) {
 
   # FIXME: Why do we need to round here?
   tbl <- table(classTest, round(pred))
-  er <- computeErrorRate(tbl)
-  print(paste("Error rate: ", er))
+  printAllConfusionMatrixStats(tbl)
 }
 
 #hist(pred, labels = TRUE)
@@ -426,8 +462,7 @@ for (i in 1:3) {
 
   # FIXME: Why do we need to round here?
   tbl <- table(classTest, round(pred))
-  er <- computeErrorRate(tbl)
-  print(paste("Error rate: ", er))
+  printAllConfusionMatrixStats(tbl)
 }
 
 ```
@@ -472,10 +507,25 @@ write.csv(cbind("id" = competitionData[, "id"], "King_Louis" = lapply(round(pred
 
 > This is not really a problem *per se* but rather a criterion that we will go by when assessing quality of your predictions for the test dataset.  You get these four points if your predictions for **test** dataset are better than those obtained from a fair coin flip (already shown in leaderboard and as examples of the file format for predictions upload) by at least 10% on **all** four metrics shown in the leaderboard (accuracy, sensitivity, specificity and precision).  But then predictions by the coin flip should not be very difficult to improve upon.
 
-```{r, eval = FALSE}
+3/4 Completed on 15 December, 2019
 
+[CSCI E-63C: Final Exam: Test Predictions Leaderboard](https://cdn.inst-fs-iad-prod.inscloudgate.net/06b01ad9-8883-4155-a772-d7d04f7e8194/FinalExamLeaderBoard.html?token=eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCIsImtpZCI6ImNkbiJ9.eyJyZXNvdXJjZSI6Ii8wNmIwMWFkOS04ODgzLTQxNTUtYTc3Mi1kN2QwNGY3ZTgxOTQvRmluYWxFeGFtTGVhZGVyQm9hcmQuaHRtbCIsInRlbmFudCI6ImNhbnZhcyIsInVzZXJfaWQiOiIxODc1MDAwMDAwMDE2NDQ1OCIsImlhdCI6MTU3NjQzNzM4OCwiZXhwIjoxNTc2NTIzNzg4fQ.iqZdHHH_LHef6BKivdyFidY1Uy3zt7QiVEdwXoKcFOuqOHVj-xX9huNdZzmVDt5HATcBqVMT6tHuJAJyWA1isA&content_type=text%2Fhtml) 
+
+All but *Sensitivity* is a 10% improvement over `CoinFlip`.
+
+```{r, eval = FALSE}
+# -----+--------------+-------+----------+-------------+-------------+----------
+# rank | Submission   | N     | Accuracy | Sensitivity | Specificity | Precision
+# -----+--------------+-------+----------+-------------+-------------+----------
+# 1    | RaNdOmFoReSt | 15498 | 90.33424 | 77.20138    | 94.53957    | 81.90799
+# ...
+# 36   | King_Louis   | 15498 | 86.30146 | 55.97233    | 96.01329    | 81.80404
+# ...
+# 53   | CoinFlip     | 15498 | 49.72254 | 50.09311    | 49.60388    | 24.14412
+# -----+--------------+-------+----------+-------------+-------------+----------
 ```
 
+_Updated on 2019-12-15 22:08:27_
 
 # Extra 5 points: KNN model
 
