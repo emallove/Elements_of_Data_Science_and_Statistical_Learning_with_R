@@ -336,7 +336,7 @@ for (i in 1:3) {
 
 The output of our logistic regression (glm binomial) shows `wi`, `sb`, `qh`, and `np` topping the list for significance:
 
-```{r logitResults, echo = TRUE, eval = FALSE, timeit = TRUE}
+```{r logitResults, echo = TRUE, timeit = TRUE}
 # wi             <2e-16 ***
 # sb             <2e-16 ***
 # qh             <2e-16 ***
@@ -348,7 +348,6 @@ The output of our logistic regression (glm binomial) shows `wi`, `sb`, `qh`, and
 # sci           0.03704 *
 # dtj           0.02077 *
 
-
 significantPredictors <- c("wi", "sb", "qh", "np", "xt", "tdt", "ku", "sci", "dtj")
 
 ```
@@ -357,7 +356,7 @@ significantPredictors <- c("wi", "sb", "qh", "np", "xt", "tdt", "ku", "sci", "dt
 
 > Assess the impact/significance of pairwise interaction terms for all pairwise combinations of covariates used in the model and report the top ten that most significantly improve model fit.
 
-```{r checkForInteractions, error = TRUE, timeit = TRUE}
+```{r checkForInteractions, error = TRUE, eval = FALSE, timeit = TRUE}
 
 # Plot predictors with response
 for (i in colNames) {
@@ -458,8 +457,6 @@ for (i in 1:3) {
   # FIXME: try using response factors (instead of response integers)
   svmRes <- svm(xyzTrain, classTrain, kernel="radial")
   pred <- predict(svmRes, newdata=xyzTest)
-  tbl <- table(classTest, pred)
-
   # FIXME: Why do we need to round here?
   tbl <- table(classTest, round(pred))
   printAllConfusionMatrixStats(tbl)
@@ -479,7 +476,7 @@ Above we have used glm (binomial), LDA, random forest, and SVM to predict respon
 
 > Decide on the model that performs the best and use it to make predictions for the **test** dataset.  This is the dataset that is provided separately from training data without the outcome `response` that we are modeling here.  Upload resulting predictions in comma-separated values (CSV) format into the Canvas website.  Please check sample files with test dataset predictions for the expected format of the *.csv file with predictions: your submission must be in precisely the same format -- two and only two columns, first column - ids of the test observations ("id" column in test dataset), second - predictions as Y/N calls (not 0/1, 1/2, true/false, etc.).  The name of the second column of predictions is what will be used in leaderboard as its name.
 
-```{r makePredictions, timeit = TRUE}
+```{r makePredictions, eval = FALSE, timeit = TRUE}
 
 # Use the whole dang dataset
 #r <- getTestData(splitBy = 100)  # Attempt 1
@@ -494,14 +491,15 @@ classTrain = r$classTrain
 competitionData <- read.csv("final-data-test.csv", sep=",")
 competitionDataNumeric <- convertFactorsToNumbers(competitionData)
 
-#svmRes <- svm(xyzTrain, classTrain, kernel="radial")  # Attempt 1
-svmRes <- svm(xyzTrain, classTrain)
-pred <- predict(svmRes, newdata=competitionDataNumeric)
+rfRes <- randomForest(xyzTrain, as.numeric(classTrain))
+pred <- predict(rfRes, newdata=competitionDataNumeric)
 
 # FIXME: Remove leftmost column line numbers from .csv file
 write.csv(cbind("id" = competitionData[, "id"], "King_Louis" = lapply(round(pred), FUN = function(x) ifelse(x < 1, "N", "Y"))), file = "predictions-kl.csv")
 
 ```
+
+
 
 ## Problem 6c: get better than coin flip by 10% (4 points)
 
@@ -509,32 +507,84 @@ write.csv(cbind("id" = competitionData[, "id"], "King_Louis" = lapply(round(pred
 
 3/4 Completed on 15 December, 2019
 
-[CSCI E-63C: Final Exam: Test Predictions Leaderboard](https://cdn.inst-fs-iad-prod.inscloudgate.net/06b01ad9-8883-4155-a772-d7d04f7e8194/FinalExamLeaderBoard.html?token=eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCIsImtpZCI6ImNkbiJ9.eyJyZXNvdXJjZSI6Ii8wNmIwMWFkOS04ODgzLTQxNTUtYTc3Mi1kN2QwNGY3ZTgxOTQvRmluYWxFeGFtTGVhZGVyQm9hcmQuaHRtbCIsInRlbmFudCI6ImNhbnZhcyIsInVzZXJfaWQiOiIxODc1MDAwMDAwMDE2NDQ1OCIsImlhdCI6MTU3NjQzNzM4OCwiZXhwIjoxNTc2NTIzNzg4fQ.iqZdHHH_LHef6BKivdyFidY1Uy3zt7QiVEdwXoKcFOuqOHVj-xX9huNdZzmVDt5HATcBqVMT6tHuJAJyWA1isA&content_type=text%2Fhtml) 
+Completed on 16 December, 2019:
 
-All but *Sensitivity* is a 10% improvement over `CoinFlip`.
+[CSCI E-63C: Final Exam: Test Predictions Leaderboard](https://cdn.inst-fs-iad-prod.inscloudgate.net/a02e210f-f238-4e5c-9d87-7354fec77f22/FinalExamLeaderBoard.html?token=eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCIsImtpZCI6ImNkbiJ9.eyJyZXNvdXJjZSI6Ii9hMDJlMjEwZi1mMjM4LTRlNWMtOWQ4Ny03MzU0ZmVjNzdmMjIvRmluYWxFeGFtTGVhZGVyQm9hcmQuaHRtbCIsInRlbmFudCI6ImNhbnZhcyIsInVzZXJfaWQiOiIxODc1MDAwMDAwMDE2NDQ1OCIsImlhdCI6MTU3NjU0MzczNiwiZXhwIjoxNTc2NjMwMTM2fQ.GFilxMMlssMEW41XT9FDp0uxGkkr4z9Mlr7FYoWonu0mFO7BBrwJ2zemqmXxDQU9_H9Pa3oIutjLaz3QF-T4CA&content_type=text%2Fhtml) 
 
 ```{r, eval = FALSE}
-# -----+--------------+-------+----------+-------------+-------------+----------
-# rank | Submission   | N     | Accuracy | Sensitivity | Specificity | Precision
-# -----+--------------+-------+----------+-------------+-------------+----------
-# 1    | RaNdOmFoReSt | 15498 | 90.33424 | 77.20138    | 94.53957    | 81.90799
+# -----+----------------+-------+----------+-------------+-------------+----------
+# rank | Submission     | N     | Accuracy | Sensitivity | Specificity | Precision
+# -----+----------------+-------+----------+-------------+-------------+----------
+# 1    | jrs_2019_12_16 | 15498 | 90.46974 | 79.11679    | 94.10512    | 81.12384
+# 2    | jdprf2         | 15498 | 90.35359 | 77.06837    | 94.60772    | 82.06799
+# 3    | RaNdOmFoReSt   | 15498 | 90.33424 | 77.20138    | 94.53957    | 81.90799
 # ...
-# 36   | King_Louis   | 15498 | 86.30146 | 55.97233    | 96.01329    | 81.80404
+# 24   | King_Louis     | 15498 | 89.20506 | 71.69460    | 94.81216    | 81.56780
 # ...
-# 53   | CoinFlip     | 15498 | 49.72254 | 50.09311    | 49.60388    | 24.14412
-# -----+--------------+-------+----------+-------------+-------------+----------
+# 56   | CoinFlip       | 15498 | 49.72254 | 50.09311    | 49.60388    | 24.14412
+# -----+----------------+-------+----------+-------------+-------------+----------
 ```
 
-_Updated on 2019-12-15 22:08:27_
+_Updated on 2019-12-16 19:04:05_
 
 # Extra 5 points: KNN model
 
 > Develop KNN classifiers for various values of $K$ and compare their performance to that from the rest of the models evaluated herein.  The challenges associated with this task include: a) handling the increase in computational demands of KNN models with the increase in the size of the data, and b) deciding on the choice of the distance that is suitable for a dataset with categorical attributes.
 
+```{r knn, timeit = TRUE}
+
+library(class)
+
+# Use *ALL* data as training data
+r <- getTestData(splitBy = 30, splitTrainingAndTestBy = 2)
+xyzTest    = r$xyzTest
+xyzTrain   = r$xyzTrain
+classTest  = r$classTest
+classTrain = r$classTrain
+  
+# for (kVal in c(1,2,5,10,20,40,80)) {
+for (kVal in c(1,2,5,10,20,40,80)) {
+  
+  print(paste("K: ", kVal))
+  
+  # FIXME: Why such dreadful sensitivity?
+  knnRes <- knn(xyzTrain, xyzTest, classTrain, k = kVal)
+  tbl <- table(classTest, knnRes)
+  printAllConfusionMatrixStats(tbl)
+}
+
+```
+
+`k = 20` seems to outperform the other k values (e.g., 1, 2, 5, 10, 40, or 80).
+
 # Extra 10 points: neural network model
 
 > Experiment with fitting neural network models of categorical outcome `response` for this data and evaluate their performance on different splits of the data into training and test. Compare model performance to that for the rest of classifiers developed above.
 
+```{r neuralNet, timeit = TRUE}
+
+library(neuralnet)
+library(BBmisc)
+
+r <- getTestData(splitBy = 30, splitTrainingAndTestBy = 2)
+xyzTest    = r$xyzTest
+xyzTrain   = r$xyzTrain
+classTest  = r$classTest
+classTrain = r$classTrain
+
+#for (hA in c(1,3,5)) {
+for (hA in c(10)) {
+
+  nnRes <- neuralnet(response ~ ., lifesign = "minimal", data = cbind(scale(xyzTrain), "response" = classTrain),
+                     learningrate = 0.01, algorithm = "backprop", hidden = c(10, 10), rep = 1, stepmax=1e+05,
+                     threshold = 0.01, linear.output = FALSE, err.fct = 'ce')
+  #prediction <- round(compute(nnRes, xyzTest)$net.result)
+  prediction <- predict(nnRes, newdata = xyzTest)
+  #print(summary(prediction))
+  tbl <- table(classTest, round(prediction))
+  print(paste("Accuracy: ", computeAccuracy(tbl)))
+}
+```
 
 # An afterword on the computational demands of the final exam
 
